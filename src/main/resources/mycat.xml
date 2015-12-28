@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mycat:server>
+<mycat>
+    <server-config>
+		<system>
+			<property name="sequnceHandlerType">2</property>
+			<property name="serverPort">8066</property>
+			<property name="managerPort">9066</property>
+			<property name="charset">utf8</property>		
+		</system>
+		<user name="mycat">
+			<property name="password">mycat</property>
+			<property name="schemas">mycat</property>
+		</user>
+    </server-config>
+    <schema-config>
+        <schema name="mycat" checkSQLschema="true" sqlMaxLimit="100" dataNode="dn1" />        	
+		<dataNode name="dn1" dataHost="pghost" database="mycat" />      
+	    <dataHost name="pghost" maxCon="2000" minCon="20" balance="1" 
+	       writeType="0" dbType="PostgreSQL" dbDriver="native" switchType="1">
+			<heartbeat>select 1</heartbeat>
+			<writeHost host="host_a" url="localhost:5432" user="postgres"
+				password="coollf"/>
+		</dataHost>
+    </schema-config>
+    <rule-config>       
+        <!-- /** * “2” -> (0,2) * “1:2” -> (1,2) * “1:” -> (1,0) * “-1:” -> (-1,0) * “:-1” -> (0,-1) * “:” -> (0,0) */  -4,0代表倒数后4个 -->
+        <tableRule name="sharding-by-String" column="create_time" functionName="io.mycat.route.function.PartitionByString">
+           <property name="partitionLength">512</property><!-- zero-based -->
+           <property name="partitionCount">2</property>
+           <property name="hashSlice">0:2</property>
+        </tableRule>
+        <tableRule name="sharding-by-PartitionDirectBySubString" column="create_time" functionName="io.mycat.route.function.PartitionDirectBySubString">
+           <property name="startIndex">0</property><!-- zero-based -->
+           <property name="size">2</property>
+           <property name="partitionCount">8</property>
+           <property name="defaultPartition">0</property>
+        </tableRule>
+    </rule-config>
+    <sequence-config>
+          <sequence type="0" class="io.mycat.server.sequence.IncrSequencePropHandler">
+	      </sequence>
+    </sequence-config>
+    <cluster-config>    
+    </cluster-config>
+    <charset-config>
+         <property name="55">utf8</property>
+    </charset-config>
+</mycat>
