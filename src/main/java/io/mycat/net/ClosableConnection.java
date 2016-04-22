@@ -24,25 +24,33 @@
 package io.mycat.net;
 
 public interface ClosableConnection {
+	/* TODO */
 	String getCharset();
-	/**
-	 * 关闭连接
-	 */
+
+	/* 关闭连接 */
 	void close(String reason);
 
+	/* TODO */
 	boolean isClosed();
 
+	/* TODO */
 	public void idleCheck();
 
+	/* TODO */
 	long getStartupTime();
 
+	/* TODO */
 	String getHost();
 
+	/* TODO */
 	int getPort();
 
+	/* TODO */
 	int getLocalPort();
 
+	/* TODO */
 	long getNetInBytes();
 
+	/* TODO */
 	long getNetOutBytes();
 }

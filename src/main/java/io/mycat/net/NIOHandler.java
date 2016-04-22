@@ -13,24 +13,21 @@ public interface NIOHandler<T extends Connection> {
 	/**
 	 * 连接建立成功的通知事件
 	 * 
-	 * @param con
-	 *            当前连接
+	 * @param con	当前连接
 	 */
 	public void onConnected(T con) throws IOException;
 
 	/**
 	 * 连接失败
 	 * 
-	 * @param con
-	 *            失败的连接
-	 * @param e
-	 *            连接异常
+	 * @param con	失败的连接
+	 * @param e 	连接异常
 	 */
 	public void onConnectFailed(T con, Throwable e);
 	
 	/**
 	 * 连接关闭通知
-	 * @param con
+	 * @param con	连接
 	 * @throws IOException
 	 */
 	public void onClosed(T con,String reason);
@@ -38,12 +35,9 @@ public interface NIOHandler<T extends Connection> {
 	/**
 	 * 收到数据需要处理
 	 * 
-	 * @param con
-	 *            当前连接
-	 * @param data
-	 *            收到的数据包
-	 * @param readedLength    数据包的长度
+	 * @param con 			当前连接
+	 * @param data 			收到的数据包
+	 * @param readedLength	数据包的长度
 	 */
 	void handle(T con, ByteBuffer data,int start,int readedLength);
-
 }

@@ -16,42 +16,47 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * @author wuzh
  * 表示连接,可以是客户端连接，也可以是服务端连接
  */
 public abstract class Connection implements ClosableConnection{
 	public static Logger LOGGER = LoggerFactory.getLogger(Connection.class);
-	protected String host;
-	protected int port;
-	protected int localPort;
-	protected long id;
+
+	protected String host;		/* ip 		*/
+	protected int port;			/* 本地port */
+	protected int localPort;	/* 远程port */
+	protected long id;			/* 连接ID 	*/
 
 	public enum State {
 		connecting, connected, closing, closed, failed
 	}
-
 	private State state = State.connecting;
 
 	// 连接的方向，in表示是客户端连接过来的，out表示自己作为客户端去连接对端Sever
 	public enum Direction {
 		in, out
 	}
-
 	private Direction direction = Direction.in;
 
-	protected final SocketChannel channel;
 
-	private SelectionKey processKey;
+	protected final SocketChannel channel;	/* TCP socket */
+
+	private SelectionKey processKey;		/* Select机制用到的 */
 	private static final int OP_NOT_READ = ~SelectionKey.OP_READ;
 	private static final int OP_NOT_WRITE = ~SelectionKey.OP_WRITE;
-	private ByteBuffer readBuffer;
-	private ByteBuffer writeBuffer;
-	private final ConcurrentLinkedQueue<ByteBuffer> writeQueue = new ConcurrentLinkedQueue<ByteBuffer>();
-	private final ReentrantLock writeQueueLock = new ReentrantLock();
+
+	private ByteBuffer readBuffer;	/* 用于保存网络读取的数据 */
 	private int readBufferOffset;
+
+	private ByteBuffer writeBuffer;	/* 用户保存向网络写的数据 */
+	private final ConcurrentLinkedQueue<ByteBuffer> writeQueue = new ConcurrentLinkedQueue<ByteBuffer>();	/* 用户保存向网络写的数据 */
+	private final ReentrantLock writeQueueLock = new ReentrantLock();
+
+	/* state */
 	private long lastLargeMessageTime;
 	protected boolean isClosed;
 	protected boolean isSocketClosed;
+
+	/* static */
 	protected long startupTime;
 	protected long lastReadTime;
 	protected long lastWriteTime;
@@ -59,12 +64,13 @@ public abstract class Connection implements ClosableConnection{
 	protected int netOutBytes;
 	protected int pkgTotalSize;
 	protected int pkgTotalCount;
-	private long idleTimeout;
+	private long idleTimeout;			/* 判断连接是否空闲的时间长度 */
 	private long lastPerfCollectTime;
+
 	@SuppressWarnings("rawtypes")
-	protected NIOHandler handler;	/* 处理数据 */
-	private int maxPacketSize;
-	private int packetHeaderSize;
+	protected NIOHandler handler;	/* 负责处理数据,这里只负责读取完整的数据包 */
+	private int maxPacketSize;		/* TODO */
+	private int packetHeaderSize;	/* TODO */
 
 	public Connection(SocketChannel channel) {
 		this.channel = channel;
@@ -83,83 +89,27 @@ public abstract class Connection implements ClosableConnection{
 		lastPerfCollectTime = TimeUtil.currentTimeMillis();
 	}
 
-	public long getLastPerfCollectTime() {
-		return lastPerfCollectTime;
-	}
-
-	public long getIdleTimeout() {
-		return idleTimeout;
-	}
-
-	public void setIdleTimeout(long idleTimeout) {
-		this.idleTimeout = idleTimeout;
-	}
-
-	public String getHost() {
-		return host;
-	}
-
-	public void setHost(String host) {
-		this.host = host;
-	}
-
-	public int getPort() {
-		return port;
-	}
-
-	public void setPort(int port) {
-		this.port = port;
-	}
-
-	public long getId() {
-		return id;
-	}
-
-	public int getLocalPort() {
-		return localPort;
-	}
-
-	public void setLocalPort(int localPort) {
-		this.localPort = localPort;
-	}
-
-	public void setId(long id) {
-		this.id = id;
-	}
-
-	public boolean isIdleTimeout() {
-		return TimeUtil.currentTimeMillis() > Math.max(lastWriteTime,
-				lastReadTime) + idleTimeout;
-
-	}
-
-	public SocketChannel getChannel() {
-		return channel;
-	}
-
-	public long getStartupTime() {
-		return startupTime;
-	}
-
-	public long getLastReadTime() {
-		return lastReadTime;
-	}
-
-	public long getLastWriteTime() {
-		return lastWriteTime;
-	}
-
-	public long getNetInBytes() {
-		return netInBytes;
-	}
-
-	public long getNetOutBytes() {
-		return netOutBytes;
-	}
-
-	public ByteBuffer getReadBuffer() {
-		return readBuffer;
-	}
+	public long getLastPerfCollectTime() { return lastPerfCollectTime; }
+	public long getIdleTimeout() { return idleTimeout; }
+	public void setIdleTimeout(long idleTimeout) { this.idleTimeout = idleTimeout; }
+	public String getHost() { return host; }
+	public void setHost(String host) { this.host = host; }
+	public int getPort() { return port; }
+	public void setPort(int port) { this.port = port; }
+	public long getId() { return id; }
+	public int getLocalPort() { return localPort; }
+	public void setLocalPort(int localPort) { this.localPort = localPort; }
+	public void setId(long id) { this.id = id; }
+	public SocketChannel getChannel() { return channel; }
+	public long getStartupTime() { return startupTime; }
+	public long getLastReadTime() { return lastReadTime; }
+	public long getLastWriteTime() { return lastWriteTime; }
+	public long getNetInBytes() { return netInBytes; }
+	public long getNetOutBytes() { return netOutBytes; }
+	public ByteBuffer getReadBuffer() { return readBuffer; }
+	public void setHandler(NIOHandler<? extends Connection> handler) { this.handler = handler; }
+	@SuppressWarnings("rawtypes")
+	public NIOHandler getHandler() { return this.handler; }
 
 	private ByteBuffer allocate() {
 		ByteBuffer buffer = NetSystem.getInstance().getBufferPool().allocate();
@@ -170,15 +120,13 @@ public abstract class Connection implements ClosableConnection{
 		NetSystem.getInstance().getBufferPool().recycle(buffer);
 	}
 
-	public void setHandler(NIOHandler<? extends Connection> handler) {
-		this.handler = handler;
+
+	public boolean isIdleTimeout() {
+		return TimeUtil.currentTimeMillis() > Math.max(lastWriteTime,
+				lastReadTime) + idleTimeout;
 
 	}
 
-	@SuppressWarnings("rawtypes")
-	public NIOHandler getHandler() {
-		return this.handler;
-	}
 
 	@SuppressWarnings("unchecked")
 	public void handle(final ByteBuffer data, final int start,
@@ -429,6 +377,7 @@ public abstract class Connection implements ClosableConnection{
 		return isClosed;
 	}
 
+    /* 如果*/
 	public void idleCheck() {
 		if (isIdleTimeout()) {
 			LOGGER.info(toString() + " idle timeout");
@@ -601,6 +550,10 @@ public abstract class Connection implements ClosableConnection{
 
 	}
 
+	/**
+	 * <p>功能描述：将当前conn设置成可写 </p>
+	 * @param wakeup	是否让selector的wait返回,执行一次网络操作
+	 */
 	public void enableWrite(boolean wakeup) {
 		boolean needWakeup = false;
 		try {
@@ -617,13 +570,11 @@ public abstract class Connection implements ClosableConnection{
 	}
 
 	public void disableRead() {
-
 		SelectionKey key = this.processKey;
 		key.interestOps(key.interestOps() & OP_NOT_READ);
 	}
 
 	public void enableRead() {
-
 		boolean needWakeup = false;
 		try {
 			SelectionKey key = this.processKey;

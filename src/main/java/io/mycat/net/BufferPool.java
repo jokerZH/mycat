@@ -7,31 +7,38 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * @author wuzh
- */
+/* 多线程的buffer pool */
 public final class BufferPool {
+	private static final Logger LOGGER = LoggerFactory.getLogger(BufferPool.class);
+
 	// this value not changed ,isLocalCacheThread use it
 	public static final String LOCAL_BUF_THREAD_PREX = "$_";
-	private final ThreadLocalBufferPool localBufferPool;
-	private static final Logger LOGGER = LoggerFactory
-			.getLogger(BufferPool.class);
-	private final int chunkSize;
-	private final int conReadBuferChunk;
-	private final ConcurrentLinkedQueue<ByteBuffer> items = new ConcurrentLinkedQueue<ByteBuffer>();
+	private final int chunkSize;	/* byteBuffer的大小 */
+	private final ThreadLocalBufferPool localBufferPool;	/* 本地线程的 Buffer Pool */
+	private final ConcurrentLinkedQueue<ByteBuffer> items = new ConcurrentLinkedQueue<ByteBuffer>();	/* 保存全部buffer */
+
 	/**
 	 * 只用于Connection读取Socket事件，每个Connection一个ByteBuffer（Direct），
-	 * 此ByteBufer通常应该能容纳2-N个 应用消息的报文长度，
+	 * 此ByteBufer通常应该能容纳2-N个应用消息的报文长度，
 	 * 对于超出的报文长度，则由BufferPool单独份分配临时的堆内ByteBuffer
 	 */
-	private final ConcurrentLinkedQueue<ByteBuffer> conReadBuferQueue = new ConcurrentLinkedQueue<ByteBuffer>();
-	private long sharedOptsCount;
-	private int newCreated;
-	private final long threadLocalCount;
-	private final long capactiy;
+	private final int conReadBuferChunk;	/* TODO */
+	private final ConcurrentLinkedQueue<ByteBuffer> conReadBuferQueue = new ConcurrentLinkedQueue<ByteBuffer>(); /* TODO */
 
-	public BufferPool(long bufferSize, int chunkSize, int conReadBuferChunk,
-			int threadLocalPercent) {
+	private long sharedOptsCount;			/* buffer回收到到item上的次数 */
+	private int newCreated;					/* 初始化之后,新创建的byteBuffer */
+	private final long threadLocalCount;	/* localBufferPool中的buffer个数*/
+	private final long capactiy;			/* buffer的总个数 */
+
+	/**
+	 * <p>功能描述：构造函数 </p>
+	 *
+	 * @param bufferSize	Buffer Pool总大小
+	 * @param chunkSize		单个byteBuffer的大小
+	 * @param conReadBuferChunk		TODO
+	 * @param threadLocalPercent	localBufferPool占总pool的比例
+	 */
+	public BufferPool(long bufferSize, int chunkSize, int conReadBuferChunk, int threadLocalPercent) {
 		this.chunkSize = chunkSize;
 		this.conReadBuferChunk = conReadBuferChunk;
 		long size = bufferSize / chunkSize;
@@ -44,6 +51,7 @@ public final class BufferPool {
 		localBufferPool = new ThreadLocalBufferPool(threadLocalCount);
 	}
 
+	/* TODO */
 	private static final boolean isLocalCacheThread() {
 		final String thname = Thread.currentThread().getName();
 		return (thname.length() < LOCAL_BUF_THREAD_PREX.length()) ? false
@@ -51,26 +59,17 @@ public final class BufferPool {
 
 	}
 
-	public int getConReadBuferChunk() {
-		return conReadBuferChunk;
-	}
+	public int getConReadBuferChunk() { return conReadBuferChunk; }
+	public int getChunkSize() { return chunkSize; }
+	public long getSharedOptsCount() { return sharedOptsCount; }
+	public long size() { return this.items.size(); }
+	public long capacity() { return capactiy + newCreated; }
 
-	public int getChunkSize() {
-		return chunkSize;
-	}
-
-	public long getSharedOptsCount() {
-		return sharedOptsCount;
-	}
-
-	public long size() {
-		return this.items.size();
-	}
-
-	public long capacity() {
-		return capactiy + newCreated;
-	}
-
+	/**
+	 * <p>功能描述：从conReadBufferQueue分配buffer,如果没有 直接新建 </p>
+	 *
+	 * @return ByteBuffer
+	 */
 	public ByteBuffer allocateConReadBuffer() {
 		ByteBuffer result = conReadBuferQueue.poll();
 		if (result != null) {
@@ -85,6 +84,11 @@ public final class BufferPool {
 		return new BufferArray(this);
 	}
 
+	/**
+	 * <p>功能描述：分配一个byte buffer </p>
+	 *
+	 * @return ByteBuffer
+	 */
 	public ByteBuffer allocate() {
 		ByteBuffer node = null;
 		if (isLocalCacheThread()) {
@@ -94,6 +98,8 @@ public final class BufferPool {
 				return node;
 			}
 		}
+
+		//否则从items中分配
 		node = items.poll();
 		if (node == null) {
 			newCreated++;
@@ -117,6 +123,16 @@ public final class BufferPool {
 		return true;
 	}
 
+	/**
+	 * <p>功能描述：回收用于read的buffer </p>
+	 * <p>其他说明： </p>
+	 *
+	 * @date   16/4/22 下午3:48
+	 * @param
+	 *
+	 * @return
+	 * @throws
+	 */
 	public void recycleConReadBuffer(ByteBuffer buffer) {
 		if (buffer == null || !buffer.isDirect()) {
 			return;
@@ -139,6 +155,7 @@ public final class BufferPool {
 				localQueue.put(buffer);
 			} else {
 				// recyle 3/4 thread local buffer
+				// 将线程的buffer移动到items上
 				items.addAll(localQueue.removeItems(threadLocalCount * 3 / 4));
 				items.offer(buffer);
 				sharedOptsCount++;
@@ -160,11 +177,25 @@ public final class BufferPool {
 
 	}
 
+	/**
+	 * <p>功能描述：创建一个bytebuffer </p>
+	 *
+	 * @param size	buffer的大小
+	 *
+	 * @return ByteBuffer
+	 */
 	private ByteBuffer createDirectBuffer(int size) {
 		// for performance
 		return ByteBuffer.allocateDirect(size);
 	}
 
+	/**
+	 * <p>功能描述：申请一个bytebuffer </p>
+	 *
+	 * @param size	buffer的大小
+	 *
+	 * @return ByteBuffer
+	 */
 	public ByteBuffer allocate(int size) {
 		if (size <= this.chunkSize) {
 			return allocate();
@@ -174,18 +205,5 @@ public final class BufferPool {
 			throw new RuntimeException("execuddd");
 			// return createTempBuffer(size);
 		}
-	}
-
-	public static void main(String[] args) {
-		BufferPool pool = new BufferPool(1024 * 5, 1024, 1024 * 3, 2);
-		long i = pool.capacity();
-		ArrayList<ByteBuffer> all = new ArrayList<ByteBuffer>();
-		for (int j = 0; j <= i; j++) {
-			all.add(pool.allocate());
-		}
-		for (ByteBuffer buf : all) {
-			pool.recycle(buf);
-		}
-		System.out.println(pool.size());
 	}
 }

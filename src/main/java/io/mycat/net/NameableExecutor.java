@@ -5,9 +5,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-/**
- * @author wuzh
- */
+/* 线程池 */
 public class NameableExecutor  extends ThreadPoolExecutor implements NameableExecutorService{
     protected  final String name;
 

@@ -6,28 +6,22 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
 
-/**
- * @author wuzh
- */
+/* ByteBuffer的队列 */
 public final class BufferQueue {
-	private final long total;
-	private final LinkedList<ByteBuffer> items = new LinkedList<ByteBuffer>();
+	private final long total;	/* 队列最大的byteBuffer的个数 */
+	private final LinkedList<ByteBuffer> items = new LinkedList<ByteBuffer>(); /* ByteBuffer链表 */
 
 	public BufferQueue(long capacity) {
 		this.total = capacity;
 	}
 
-	/**
-	 * used for statics
-	 * 
-	 * @return
-	 */
+	/* for statics */
 	public long snapshotSize() {
 		return this.items.size();
 	}
 
+	/* 从链表中获得count个ByteBuffer */
 	public Collection<ByteBuffer> removeItems(long count) {
-
 		ArrayList<ByteBuffer> removed = new ArrayList<ByteBuffer>();
 		Iterator<ByteBuffer> itor = items.iterator();
 		while (itor.hasNext()) {
@@ -40,28 +34,24 @@ public final class BufferQueue {
 		return removed;
 	}
 
-	/**
-	 * 
-	 * @param buffer
-	 * @throws InterruptedException
-	 */
+	/* 将buffer加入到链表中 */
 	public void put(ByteBuffer buffer) {
 		this.items.offer(buffer);
 		if (items.size() > total) {
 			throw new java.lang.RuntimeException(
-					"bufferQueue size exceeded ,maybe sql returned too many records ,cursize:"
-							+ items.size());
-
+				"bufferQueue size exceeded ,maybe sql returned too many records ,cursize:" + items.size()
+			);
 		}
 	}
 
+	/* 获得一个byteBuffer */
 	public ByteBuffer poll() {
 		ByteBuffer buf = items.poll();
 		return buf;
 	}
 
+	/* 返回是否为空 */
 	public boolean isEmpty() {
 		return items.isEmpty();
 	}
-
 }

@@ -1,10 +1,6 @@
 package io.mycat.net;
 
-/**
- * 连接ID生成器
- * 
- * @author mycat
- */
+/* 连接ID生成器 */
 public class ConnectIdGenerator {
 
 	private static final long MAX_VALUE = Long.MAX_VALUE;

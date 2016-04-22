@@ -16,33 +16,32 @@ import java.util.concurrent.ConcurrentMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * 存放当前所有连接的信息，包括客户端和服务端等，以及Network部分所使用共用对象
- *
- * @author wuzhih
- *
- */
+/* 存放当前所有连接的信息，包括客户端和服务端等，以及Network部分所使用共用对象 */
 public class NetSystem {
-	private static final Logger LOGGER = LoggerFactory
-			.getLogger(NetSystem.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(NetSystem.class);
+
 	public static final int RUNNING = 0;
 	public static final int SHUTING_DOWN = -1;
-	// private static final Logger LOGGER = Logger.getLogger("NetSystem");
+
 	private static NetSystem INSTANCE;
-	private final BufferPool bufferPool;	/* buffer分配器 */
-	// 用来执行那些耗时的任务
-	private final NameableExecutor executor;
-	// 用来执行定时任务
+	public static NetSystem getInstance() { return INSTANCE; }
+
+
+	private final BufferPool bufferPool;		/* 总的buffer分配器 */
+	private final NameableExecutor executor;	/* 用来执行那些耗时的任务 */
 	private final NamebleScheduledExecutor timer;	/* 定时器的处理线程池 */
-	private final ConcurrentMap<Long, Connection> allConnections;
+
+	private final ConcurrentMap<Long/*conn ID*/, Connection> allConnections;
+
+	/* staitc */
 	private long netInBytes;
 	private long netOutBytes;
-	private SystemConfig netConfig;
-	private NIOConnector connector;
 
-	public static NetSystem getInstance() {
-		return INSTANCE;
-	}
+	/* config */
+	private SystemConfig netConfig;
+
+	private NIOConnector connector;	/* 用于监听端口 */
+
 
 	public NetSystem(BufferPool bufferPool, NameableExecutor executor,
 			NamebleScheduledExecutor timer) throws IOException {
@@ -53,18 +52,21 @@ public class NetSystem {
 		INSTANCE = this;
 	}
 
-	public BufferPool getBufferPool() {
-		return bufferPool;
-	}
+	public BufferPool getBufferPool() { return bufferPool; }
+	public NIOConnector getConnector() { return connector; }
+	public void setConnector(NIOConnector connector) { this.connector = connector; }
+	public SystemConfig getNetConfig() { return netConfig; }
+	public void setNetConfig(SystemConfig netConfig) { this.netConfig = netConfig; }
+	public NameableExecutor getExecutor() { return executor; }
+	public NamebleScheduledExecutor getTimer() { return timer; }
+	public long getNetInBytes() { return netInBytes; }
+	public void addNetInBytes(long bytes) { netInBytes += bytes; }
+	public long getNetOutBytes() { return netOutBytes; }
+	public void addNetOutBytes(long bytes) { netOutBytes += bytes; }
 
-	public NIOConnector getConnector() {
-		return connector;
-	}
-
-	public void setConnector(NIOConnector connector) {
-		this.connector = connector;
-	}
-
+	/**
+	 * <p>功能描述：获得所有连接的代写buffer个数 </p>
+	 */
 	public int getWriteQueueSize() {
 		int total = 0;
 		for (Connection con : allConnections.values()) {
@@ -72,46 +74,9 @@ public class NetSystem {
 		}
 
 		return total;
-
 	}
 
-	public SystemConfig getNetConfig() {
-		return netConfig;
-	}
-
-	public void setNetConfig(SystemConfig netConfig) {
-		this.netConfig = netConfig;
-	}
-
-	public NameableExecutor getExecutor() {
-		return executor;
-	}
-
-	public NamebleScheduledExecutor getTimer() {
-		return timer;
-	}
-
-	public long getNetInBytes() {
-		return netInBytes;
-	}
-
-	public void addNetInBytes(long bytes) {
-		netInBytes += bytes;
-	}
-
-	public long getNetOutBytes() {
-		return netOutBytes;
-	}
-
-	public void addNetOutBytes(long bytes) {
-		netOutBytes += bytes;
-	}
-
-	/**
-	 * 添加一个连接到系统中被监控
-	 *
-	 * @param c
-	 */
+	/* 添加一个连接到系统中被监控 */
 	public void addConnection(Connection c) {
 		allConnections.put(c.getId(), c);
 	}
@@ -120,12 +85,9 @@ public class NetSystem {
 		return allConnections;
 	}
 
-	/**
-	 * 定时执行该方法，回收部分资源。
-	 */
+	/* 定时执行该方法，回收部分资源 */
 	public void checkConnections() {
-		Iterator<Entry<Long, Connection>> it = allConnections.entrySet()
-				.iterator();
+		Iterator<Entry<Long, Connection>> it = allConnections.entrySet().iterator();
 		while (it.hasNext()) {
 			Connection c = it.next().getValue();
 
@@ -140,8 +102,8 @@ public class NetSystem {
 				c.cleanup();
 				it.remove();
 			} else {
-				// very important ,for some data maybe not sent
 				checkConSendQueue(c);
+
 				if (c instanceof BackendConnection) {
 					long sqlTimeOut = MycatServer.getInstance().getConfig()
 							.getSystem().getSqlExecuteTimeout() * 1000L;
@@ -160,6 +122,7 @@ public class NetSystem {
 		}
 	}
 
+	/* 将有buffer要写conn设置成能写,并唤醒selector的wait尝试写下 */
 	private void checkConSendQueue(Connection c) {
 		// very important ,for some data maybe not sent
 		if (!c.getWriteQueue().isEmpty()) {

@@ -16,9 +16,9 @@ import java.util.List;
  */
 public class BufferArray {
 
-	private final BufferPool bufferPool;
-	private ByteBuffer curWritingBlock;
-	private List<ByteBuffer> writedBlockLst = Collections.emptyList();
+	private final BufferPool bufferPool;	/* 分配buffer的pool */
+	private ByteBuffer curWritingBlock;		/* 现在在写的buffer  */
+	private List<ByteBuffer> writedBlockLst = Collections.emptyList();	/* 后续要写的buffer  */
 
 	public BufferArray(BufferPool bufferPool) {
 		super();
@@ -26,6 +26,12 @@ public class BufferArray {
 		curWritingBlock = bufferPool.allocate();
 	}
 
+	/**
+	 * <p>功能描述：查看当前的写buffer是否有足够的工匠,不够就申请新的buffer </p>
+	 * @param capacity	要求的大小
+	 *
+	 * @return 用户写的byteBuffer
+	 */
 	public ByteBuffer checkWriteBuffer(int capacity) {
 		if (capacity > curWritingBlock.remaining()) {
 			addtoBlock(curWritingBlock);
@@ -36,10 +42,11 @@ public class BufferArray {
 		}
 	}
 
-	public int getBlockCount()
-	{
-		return writedBlockLst.size()+1;
-	}
+	public int getBlockCount()  { return writedBlockLst.size()+1; }
+
+	/**
+	 * <p>功能描述：将bufer加入到writeBlockLst中 </p>
+	 */
 	private void addtoBlock(ByteBuffer buffer) {
 		if (writedBlockLst.isEmpty()) {
 			writedBlockLst = new LinkedList<ByteBuffer>();
@@ -61,6 +68,9 @@ public class BufferArray {
 		writedBlockLst = null;
 	}
 
+	/**
+	 * <p>功能描述：将byte[]写入bufferArray中 </p>
+	 */
 	public ByteBuffer write(byte[] src) {
 		int offset = 0;
 		int remains = src.length;
@@ -85,6 +95,9 @@ public class BufferArray {
 	}
 
 
+	/**
+	 * <p>功能描述：将bufferArray写入byte[]中 </p>
+	 */
     public byte[] writeToByteArrayAndRecycle() {
         BufferArray bufferArray=this;
         try {
