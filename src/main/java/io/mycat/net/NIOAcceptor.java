@@ -13,24 +13,20 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * @author wuzh
- *
- * 用于跟客户端连接的accept
- */
+/* 用于跟客户端连接的accept */
 public final class NIOAcceptor extends Thread {
 	private static final Logger LOGGER = LoggerFactory.getLogger(NIOAcceptor.class);
-	private final int port;
+
+	private final int port;						/* 监听的端口 */
 	private final Selector selector;
 	private final ServerSocketChannel serverChannel;
 	private final ConnectionFactory factory;	/* MySQLFrontConnectionFactory */
-	private long acceptCount;									/* accept连接的个数 */
-	private final NIOReactorPool reactorPool;	/* 具体请求的select处理线程 */
+	private long acceptCount;					/* accept连接的个数 */
+	private final NIOReactorPool reactorPool;	/* 具体请求的NIO处理器 */
 
-	public NIOAcceptor(String name, String bindIp, int port,
-			ConnectionFactory factory, NIOReactorPool reactorPool)
-			throws IOException {
+	public NIOAcceptor(String name, String bindIp, int port, ConnectionFactory factory, NIOReactorPool reactorPool) throws IOException {
 		super.setName(name);
+
 		this.port = port;
 		this.selector = Selector.open();
 		this.serverChannel = ServerSocketChannel.open();
@@ -45,14 +41,12 @@ public final class NIOAcceptor extends Thread {
 		this.reactorPool = reactorPool;
 	}
 
-	public int getPort() {
-		return port;
-	}
 
-	public long getAcceptCount() {
-		return acceptCount;
-	}
+	public int getPort() { return port; }
+	public long getAcceptCount() { return acceptCount; }
 
+
+	/* 线程的run */
 	@Override
 	public void run() {
 		final Selector selector = this.selector;
@@ -78,9 +72,7 @@ public final class NIOAcceptor extends Thread {
 		}
 	}
 
-	/**
-	 * 接受新连接
-	 */
+	/* 接受新连接 */
 	private void accept() {
 		SocketChannel channel = null;
 		try {
@@ -89,14 +81,12 @@ public final class NIOAcceptor extends Thread {
 			Connection c = factory.make(channel);
 			c.setDirection(Connection.Direction.in);
 			c.setId(ConnectIdGenerator.getINSTNCE().getId());
-			InetSocketAddress remoteAddr = (InetSocketAddress) channel
-					.getRemoteAddress();
+			InetSocketAddress remoteAddr = (InetSocketAddress) channel.getRemoteAddress();
 			c.setHost(remoteAddr.getHostString());
 			c.setPort(remoteAddr.getPort());
 			// 派发此连接到某个Reactor处理
 			NIOReactor reactor = reactorPool.getNextReactor();
 			reactor.postRegister(c);
-
 		} catch (Throwable e) {
 			closeChannel(channel);
 			LOGGER.warn(getName(), e);

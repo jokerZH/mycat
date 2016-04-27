@@ -1,7 +1,6 @@
 package io.mycat.net;
 
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.slf4j.Logger;
@@ -22,7 +21,7 @@ public final class BufferPool {
 	 * 此ByteBufer通常应该能容纳2-N个应用消息的报文长度，
 	 * 对于超出的报文长度，则由BufferPool单独份分配临时的堆内ByteBuffer
 	 */
-	private final int conReadBuferChunk;	/* TODO */
+	private final int conReadBuferChunk;	/* TODO 什么时候分配读的Buffer */
 	private final ConcurrentLinkedQueue<ByteBuffer> conReadBuferQueue = new ConcurrentLinkedQueue<ByteBuffer>(); /* TODO */
 
 	private long sharedOptsCount;			/* buffer回收到到item上的次数 */

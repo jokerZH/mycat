@@ -14,7 +14,6 @@ import org.slf4j.LoggerFactory;
 /**
  * 网络事件反应器
  * 一个读写线程
- * @author wuzh
  */
 public final class NIOReactor {
 	private static final Logger LOGGER = LoggerFactory

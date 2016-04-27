@@ -26,17 +26,18 @@ public abstract class Connection implements ClosableConnection{
 	protected int localPort;	/* 远程port */
 	protected long id;			/* 连接ID 	*/
 
+	private State state = State.connecting;	/* 当前连接的状态 */
 	public enum State {
-		connecting, connected, closing, closed, failed
+		connecting,	/* 正在建立连接 */
+		connected, 	/* 连接已经建立 */
+		closing,	/* 正在关闭连接 */
+		closed,		/* 连接已经关闭 */
+		failed		/* 连接失败 TODO */
 	}
-	private State state = State.connecting;
 
-	// 连接的方向，in表示是客户端连接过来的，out表示自己作为客户端去连接对端Sever
-	public enum Direction {
-		in, out
-	}
+	/* 连接的方向，in表示是客户端连接过来的，out表示自己作为客户端去连接对端Sever */
+	public enum Direction { in, out }
 	private Direction direction = Direction.in;
-
 
 	protected final SocketChannel channel;	/* TCP socket */
 
@@ -45,7 +46,7 @@ public abstract class Connection implements ClosableConnection{
 	private static final int OP_NOT_WRITE = ~SelectionKey.OP_WRITE;
 
 	private ByteBuffer readBuffer;	/* 用于保存网络读取的数据 */
-	private int readBufferOffset;
+	private int readBufferOffset;	/* 在readerBuffer中的偏移 */
 
 	private ByteBuffer writeBuffer;	/* 用户保存向网络写的数据 */
 	private final ConcurrentLinkedQueue<ByteBuffer> writeQueue = new ConcurrentLinkedQueue<ByteBuffer>();	/* 用户保存向网络写的数据 */
@@ -62,8 +63,8 @@ public abstract class Connection implements ClosableConnection{
 	protected long lastWriteTime;
 	protected int netInBytes;
 	protected int netOutBytes;
-	protected int pkgTotalSize;
-	protected int pkgTotalCount;
+	protected int pkgTotalSize;			/* 读取的mysql数据包总大小 */
+	protected int pkgTotalCount;		/* 读取的mysql数据包个数   */
 	private long idleTimeout;			/* 判断连接是否空闲的时间长度 */
 	private long lastPerfCollectTime;
 
@@ -110,24 +111,37 @@ public abstract class Connection implements ClosableConnection{
 	public void setHandler(NIOHandler<? extends Connection> handler) { this.handler = handler; }
 	@SuppressWarnings("rawtypes")
 	public NIOHandler getHandler() { return this.handler; }
+	public State getState() { return state; }
+	public void setState(State newState) { this.state = newState; }
+	public Direction getDirection() { return direction; }
+	public void setDirection(Connection.Direction in) { this.direction = in; }
+	public int getPkgTotalSize() { return pkgTotalSize; }
+	public int getPkgTotalCount() { return pkgTotalCount; }
+	public void setMaxPacketSize(int maxPacketSize) { this.maxPacketSize = maxPacketSize; }
+	public void setPacketHeaderSize(int packetHeaderSize) { this.packetHeaderSize = packetHeaderSize; }
 
+
+
+	/* 分配一个byte buffer */
 	private ByteBuffer allocate() {
 		ByteBuffer buffer = NetSystem.getInstance().getBufferPool().allocate();
 		return buffer;
 	}
 
+	/* 回收一个byter buffe */
 	private final void recycle(ByteBuffer buffer) {
 		NetSystem.getInstance().getBufferPool().recycle(buffer);
 	}
 
 
+	/* 判断当前连接是否是空闲的 */
 	public boolean isIdleTimeout() {
 		return TimeUtil.currentTimeMillis() > Math.max(lastWriteTime,
 				lastReadTime) + idleTimeout;
 
 	}
 
-
+	/* 处理读取的数据 */
 	@SuppressWarnings("unchecked")
 	public void handle(final ByteBuffer data, final int start,
 			final int readedLength) {
@@ -137,7 +151,7 @@ public abstract class Connection implements ClosableConnection{
 	/**
 	 * 读取一个完整的package，并调用处理函数
 	 * 
-	 * @param got
+	 * @param got	读取的数据大小
 	 * @throws IOException
 	 */
 	public void onReadData(int got) throws IOException {
@@ -154,18 +168,19 @@ public abstract class Connection implements ClosableConnection{
 				return;
 			}
 		}
+
+		// static
 		netInBytes += got;
-		// System.out.println("readed new  size "+got);
 		NetSystem.getInstance().addNetInBytes(got);
 
 		// 循环处理字节信息
-		int offset = readBufferOffset, length = 0, position = readBuffer
-				.position();
+		int offset = readBufferOffset, length = 0, position = readBuffer.position();
 		for (;;) {
+
+			// 读物mysql数据包的长度
 			length = getPacketLength(readBuffer, offset, position);
-			// LOGGER.info("message lenth "+length+" offset "+offset+" positon "+position+" capactiy "+readBuffer.capacity());
-			// System.out.println("message lenth "+length+" offset "+offset+" positon "+position);
-			if (length == -1) {	/* buffer中的数据不够一个header */
+			if (length == -1) {
+				// buffer中的数据不够一个header
 				if (offset != 0) {
 					this.readBuffer = compactReadBuffer(readBuffer, offset);
 				} else if (!readBuffer.hasRemaining()) {
@@ -175,46 +190,48 @@ public abstract class Connection implements ClosableConnection{
 				}
 				break;
 			}
+
+			// static
 			pkgTotalCount++;
 			pkgTotalSize += length;
-			// check if a complete message packge received buffer中包含了一个完整的包
+
+			// 尝试处理数据包
 			if (offset + length <= position) {
-				// handle this package
+				//一个完整的mysql数据包在Buffer中, 处理
 				readBuffer.position(offset);
-				handle(readBuffer, offset, length);	/* 处理一个包的数据 */
-				// offset to next position
+				// 处理一个包的数据
+				handle(readBuffer, offset, length);
+
 				offset += length;
-				// reached end
+
 				if (position == offset) {
-					// if cur buffer is temper none direct byte buffer and not
-					// received large message in recent 30 seconds
-					// then change to direct buffer for performance
+					// 到达Buffer的末尾
 					if (!readBuffer.isDirect()
-							&& lastLargeMessageTime < lastReadTime - 30 * 1000L) {// used
-																					// temp
-																					// heap
+							&& lastLargeMessageTime < lastReadTime - 30 * 1000L) {
+						// 如果当前Buffer是超大Buffer,并且30秒内没有接收到超大数据包,就释放这个Buffer,换一个普通的Buffer
+
 						if (LOGGER.isDebugEnabled()) {
 							LOGGER.debug("change to direct con read buffer ,cur temp buf size :"
 									+ readBuffer.capacity());
 						}
 						recycle(readBuffer);
-						readBuffer = NetSystem.getInstance().getBufferPool()
-								.allocateConReadBuffer();
+						readBuffer = NetSystem.getInstance().getBufferPool().allocateConReadBuffer();
+
 					} else {
+						// 清空数据
 						readBuffer.clear();
 					}
 					// no more data ,break
 					readBufferOffset = 0;
 					break;
 				} else {
-					// try next package parse
+					// buffer中还有数据,尝试继续处理
 					readBufferOffset = offset;
 					readBuffer.position(position);
 					continue;
 				}
 			} else {
-				// not read whole message package ,so check if buffer enough and
-				// compact readbuffer
+				// buffer没有包含整个数据包,保证Buffer有足够的空间放下接下来的数据包
 				if (!readBuffer.hasRemaining()) {
 					readBuffer = ensureFreeSpaceOfReadBuffer(readBuffer,
 							offset, length);
@@ -229,9 +246,7 @@ public abstract class Connection implements ClosableConnection{
 	}
 
 	private boolean isConReadBuffer(ByteBuffer buffer) {
-		return buffer.capacity() == NetSystem.getInstance().getBufferPool()
-				.getConReadBuferChunk()
-				&& buffer.isDirect();
+		return buffer.capacity() == NetSystem.getInstance().getBufferPool().getConReadBuferChunk() && buffer.isDirect();
 	}
 
 	/* 扩展buffer，保证能够容下一个package */
@@ -306,18 +321,12 @@ public abstract class Connection implements ClosableConnection{
 		this.enableWrite(true);
 	}
 
-	/**
-	 * note only use this method when the input buffer is shared
-	 * 
-	 * @param buffer
-	 * @param from
-	 * @param lenth
-	 */
-	public final void write(ByteBuffer buffer, int from, int lenth) {
+	/* 将byte[]封装成buffer，并放入write buffer list中 */
+	public final void write(ByteBuffer buffer, int from, int length) {
 		try {
 			writeQueueLock.lock();
 			buffer.position(from);
-			int remainByts = lenth;
+			int remainByts = length;
 			while (remainByts > 0) {
 				ByteBuffer newBuf = allocate();
 				int batchSize = newBuf.capacity();
@@ -334,6 +343,7 @@ public abstract class Connection implements ClosableConnection{
 
 	}
 
+	/* 将buffer放入wrier buffer list中 */
 	public final void write(ByteBuffer buffer) {
 		try {
 			writeQueueLock.lock();
@@ -344,6 +354,7 @@ public abstract class Connection implements ClosableConnection{
 		this.enableWrite(true);
 	}
 
+	/* 关闭当前的连接 */
 	@SuppressWarnings("unchecked")
 	public void close(String reason) {
 		if (!isClosed) {
@@ -358,11 +369,7 @@ public abstract class Connection implements ClosableConnection{
 		}
 	}
 
-	/**
-	 * asyn close (executed later in thread)
-	 * 
-	 * @param reason
-	 */
+	/* 使用多线程异步实现关闭连接 */
 	public void asynClose(final String reason) {
 		Runnable runn = new Runnable() {
 			public void run() {
@@ -373,11 +380,12 @@ public abstract class Connection implements ClosableConnection{
 
 	}
 
+	/* 返回当前连接是否关闭 */
 	public boolean isClosed() {
 		return isClosed;
 	}
 
-    /* 如果*/
+    /* 如果判定当前连接是空闲的,就释放当前连接 */
 	public void idleCheck() {
 		if (isIdleTimeout()) {
 			LOGGER.info(toString() + " idle timeout");
@@ -385,18 +393,13 @@ public abstract class Connection implements ClosableConnection{
 		}
 	}
 
-	/**
-	 * 清理资源
-	 */
-
+	/* 清理资源 */
 	protected void cleanup() {
 
 		// 清理资源占用
 		if (readBuffer != null) {
 			if (isConReadBuffer(readBuffer)) {
-				NetSystem.getInstance().getBufferPool()
-						.recycleConReadBuffer(readBuffer);
-
+				NetSystem.getInstance().getBufferPool().recycleConReadBuffer(readBuffer);
 			} else {
 				this.recycle(readBuffer);
 			}
@@ -431,17 +434,16 @@ public abstract class Connection implements ClosableConnection{
 		return writeQueue;
 	}
 
+	/* 将当前连接注册到selector中,监听读事件 */
 	@SuppressWarnings("unchecked")
 	public void register(Selector selector) throws IOException {
 		processKey = channel.register(selector, SelectionKey.OP_READ, this);
 		NetSystem.getInstance().addConnection(this);
-		readBuffer = NetSystem.getInstance().getBufferPool()
-				.allocateConReadBuffer();
+		readBuffer = NetSystem.getInstance().getBufferPool().allocateConReadBuffer();
 		this.handler.onConnected(this);
-
 	}
 
-	/* select中可写调用 */
+	/* select中可写调用,尝试写,并根据是否还是数据,设置是否监听写事件 */
 	public void doWriteQueue() {
 		try {
 			boolean noMoreData = write0();
@@ -467,6 +469,7 @@ public abstract class Connection implements ClosableConnection{
 
 	}
 
+	/* 讲BufferArray中的Buffer加入到当前连接的writer Buffer list中 */
 	public void write(BufferArray bufferArray) {
 		try {
 			writeQueueLock.lock();
@@ -490,17 +493,22 @@ public abstract class Connection implements ClosableConnection{
 
 	}
 
+	/*
+	 * nonblock的写writer Buffer list的数据
+	 * true  写玩所有writer Buffer
+	 * false 没有写完
+	 */
 	private boolean write0() throws IOException {
 
 		int written = 0;
 		ByteBuffer buffer = writeBuffer;
 		if (buffer != null) {
+			// 把上次没有写完的Buffer写了
 			while (buffer.hasRemaining()) {
 				written = channel.write(buffer);
 				if (written > 0) {
 					netOutBytes += written;
 					NetSystem.getInstance().addNetOutBytes(written);
-
 				} else {
 					break;
 				}
@@ -513,6 +521,8 @@ public abstract class Connection implements ClosableConnection{
 				recycle(buffer);
 			}
 		}
+
+		//写writer Buffer list
 		while ((buffer = writeQueue.poll()) != null) {
 			if (buffer.limit() == 0) {
 				recycle(buffer);
@@ -588,14 +598,9 @@ public abstract class Connection implements ClosableConnection{
 		}
 	}
 
-	public void setState(State newState) {
-		this.state = newState;
-	}
 
 	/**
-	 * 异步读取数据,only nio thread call
-	 * 
-	 * @throws IOException
+	 * 异步读取数据,在selector中调用
 	 */
 	protected void asynRead() throws IOException {
 		if (this.isClosed) {
@@ -603,11 +608,10 @@ public abstract class Connection implements ClosableConnection{
 		}
 		int got = channel.read(readBuffer);
 		onReadData(got);
-
 	}
 
+	/* 关闭连接 */
 	private void closeSocket() {
-
 		if (channel != null) {
 			boolean isSocketClosed = true;
 			try {
@@ -623,26 +627,6 @@ public abstract class Connection implements ClosableConnection{
 		}
 	}
 
-	public State getState() {
-		return state;
-	}
-
-	public Direction getDirection() {
-		return direction;
-	}
-
-	public void setDirection(Connection.Direction in) {
-		this.direction = in;
-
-	}
-
-	public int getPkgTotalSize() {
-		return pkgTotalSize;
-	}
-
-	public int getPkgTotalCount() {
-		return pkgTotalCount;
-	}
 
 	@Override
 	public String toString() {
@@ -651,15 +635,4 @@ public abstract class Connection implements ClosableConnection{
 				+ ", startupTime=" + startupTime + ", lastReadTime="
 				+ lastReadTime + ", lastWriteTime=" + lastWriteTime + "]";
 	}
-
-	public void setMaxPacketSize(int maxPacketSize) {
-		this.maxPacketSize = maxPacketSize;
-
-	}
-
-	public void setPacketHeaderSize(int packetHeaderSize) {
-		this.packetHeaderSize = packetHeaderSize;
-
-	}
-
 }

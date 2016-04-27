@@ -30,8 +30,6 @@ import java.io.IOException;
 
 /**
  * 系统基础配置项
- * 
- * @author mycat
  */
 public final class SystemConfig {
 
@@ -79,7 +77,7 @@ public final class SystemConfig {
 	private long idleTimeout;
 	private int catletClassCheckSeconds = 60;
 	// sql execute timeout (second)
-	private long sqlExecuteTimeout = 300;
+	private long sqlExecuteTimeout = 300;		/* 后段连接的超时时间 */
 	private long processorCheckPeriod;
 	private long dataNodeIdleCheckPeriod;
 	private long dataNodeHeartbeatPeriod;
@@ -357,9 +355,7 @@ public final class SystemConfig {
 		this.clusterHeartbeatUser = clusterHeartbeatUser;
 	}
 
-	public long getSqlExecuteTimeout() {
-		return sqlExecuteTimeout;
-	}
+	public long getSqlExecuteTimeout() { return sqlExecuteTimeout; }
 
 	public void setSqlExecuteTimeout(long sqlExecuteTimeout) {
 		this.sqlExecuteTimeout = sqlExecuteTimeout;

@@ -3,6 +3,7 @@ package io.mycat.net;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/* 负责新建thread,规范thread的名字 */
 public class NameableThreadFactory implements ThreadFactory {
 	private final ThreadGroup group;
 	private final String namePrefix;
@@ -11,8 +12,8 @@ public class NameableThreadFactory implements ThreadFactory {
 
 	public NameableThreadFactory(String name, boolean isDaemon) {
 		SecurityManager s = System.getSecurityManager();
-		this.group = (s != null) ? s.getThreadGroup() : Thread.currentThread()
-				.getThreadGroup();
+
+		this.group = (s != null) ? s.getThreadGroup() : Thread.currentThread().getThreadGroup();
 		this.namePrefix = name;
 		this.threadId = new AtomicInteger(0);
 		this.isDaemon = isDaemon;

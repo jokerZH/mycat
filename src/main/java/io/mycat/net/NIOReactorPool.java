@@ -2,9 +2,10 @@ package io.mycat.net;
 
 import java.io.IOException;
 
+/* 负责管理处理请求的线程 */
 public class NIOReactorPool {
-	private final NIOReactor[] reactors;
-	private volatile int nextReactor;
+	private final NIOReactor[] reactors;	/* 每个reacotr有自己的NIO机制 */
+	private volatile int nextReactor;		/* 处理下一个Conn的reactor的下标 */
 
 	public NIOReactorPool(String name, int poolSize) throws IOException {
 		reactors = new NIOReactor[poolSize];

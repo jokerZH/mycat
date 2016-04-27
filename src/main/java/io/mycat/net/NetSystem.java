@@ -27,11 +27,11 @@ public class NetSystem {
 	public static NetSystem getInstance() { return INSTANCE; }
 
 
-	private final BufferPool bufferPool;		/* 总的buffer分配器 */
-	private final NameableExecutor executor;	/* 用来执行那些耗时的任务 */
+	private final BufferPool bufferPool;			/* 总的buffer分配器 */
+	private final NameableExecutor executor;		/* 用来执行那些耗时的任务 */
 	private final NamebleScheduledExecutor timer;	/* 定时器的处理线程池 */
 
-	private final ConcurrentMap<Long/*conn ID*/, Connection> allConnections;
+	private final ConcurrentMap<Long/*conn ID*/, Connection> allConnections;	/* 保存当前所有连接 */
 
 	/* staitc */
 	private long netInBytes;
@@ -40,11 +40,10 @@ public class NetSystem {
 	/* config */
 	private SystemConfig netConfig;
 
-	private NIOConnector connector;	/* 用于监听端口 */
+	private NIOConnector connector;	/* 用于连接后端 */
 
 
-	public NetSystem(BufferPool bufferPool, NameableExecutor executor,
-			NamebleScheduledExecutor timer) throws IOException {
+	public NetSystem(BufferPool bufferPool, NameableExecutor executor, NamebleScheduledExecutor timer) throws IOException {
 		this.bufferPool = bufferPool;
 		this.executor = executor;
 		this.timer = timer;
@@ -63,6 +62,9 @@ public class NetSystem {
 	public void addNetInBytes(long bytes) { netInBytes += bytes; }
 	public long getNetOutBytes() { return netOutBytes; }
 	public void addNetOutBytes(long bytes) { netOutBytes += bytes; }
+	public void addConnection(Connection c) { allConnections.put(c.getId(), c); }
+	public ConcurrentMap<Long, Connection> getAllConnectios() { return allConnections; }
+	public void removeConnection(Connection con) { this.allConnections.remove(con.getId()); }
 
 	/**
 	 * <p>功能描述：获得所有连接的代写buffer个数 </p>
@@ -76,14 +78,6 @@ public class NetSystem {
 		return total;
 	}
 
-	/* 添加一个连接到系统中被监控 */
-	public void addConnection(Connection c) {
-		allConnections.put(c.getId(), c);
-	}
-
-	public ConcurrentMap<Long, Connection> getAllConnectios() {
-		return allConnections;
-	}
 
 	/* 定时执行该方法，回收部分资源 */
 	public void checkConnections() {
@@ -105,15 +99,12 @@ public class NetSystem {
 				checkConSendQueue(c);
 
 				if (c instanceof BackendConnection) {
-					long sqlTimeOut = MycatServer.getInstance().getConfig()
-							.getSystem().getSqlExecuteTimeout() * 1000L;
+					long sqlTimeOut = MycatServer.getInstance().getConfig().getSystem().getSqlExecuteTimeout() * 1000L;
+
 					BackendConnection backCon = (BackendConnection) c;
 					// SQL执行超时的连接关闭
-					if (backCon.isBorrowed()
-							&& backCon.getLastTime() < TimeUtil
-									.currentTimeMillis() - sqlTimeOut) {
-						LOGGER.warn("found backend connection SQL timeout ,close it "
-								+ c);
+					if (backCon.isBorrowed() && backCon.getLastTime() < TimeUtil.currentTimeMillis() - sqlTimeOut) {
+						LOGGER.warn("found backend connection SQL timeout ,close it " + c);
 						c.close("sql timeout");
 					}
 				}
@@ -130,13 +121,9 @@ public class NetSystem {
 		}
 	}
 
-	public void removeConnection(Connection con) {
-		this.allConnections.remove(con.getId());
 
-	}
-
-	public void setSocketParams(Connection con, boolean isFrontChannel)
-			throws IOException {
+	/* 设置tcp连接的参数 */
+	public void setSocketParams(Connection con, boolean isFrontChannel)  throws IOException {
 		int sorcvbuf = 0;
 		int sosndbuf = 0;
 		int soNoDelay = 0;

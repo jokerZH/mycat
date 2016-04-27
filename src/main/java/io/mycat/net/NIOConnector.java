@@ -16,23 +16,19 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /**
- * NIO 连接器，用于连接对方Sever
- * 
+ * NIO 连接器，用于连接后端server
  * 用户跟服务端的连接建立
- * @author wuzh
  */
 public final class NIOConnector extends Thread {
 	private static final Logger LOGGER = LoggerFactory.getLogger(NIOConnector.class);
-	
 
-	private final String name;			/* 名字 */
-	private final Selector selector;	/* select的核心 */
+	private final String name;								/* 名字 */
+	private final Selector selector;						/* select的核心 */
 	private final BlockingQueue<Connection> connectQueue;	/* 待处理队列 */
-	private long connectCount;	/* 管理的连接数目 */
-	private final NIOReactorPool reactorPool;	/* 负责具体的select的事件处理 */
+	private long connectCount;								/* 管理的连接数目 */
+	private final NIOReactorPool reactorPool;				/* 负责具体的select的事件处理 */
 
-	public NIOConnector(String name, NIOReactorPool reactorPool)
-			throws IOException {
+	public NIOConnector(String name, NIOReactorPool reactorPool) throws IOException {
 		super.setName(name);
 		this.name = name;
 		this.selector = Selector.open();
@@ -40,15 +36,9 @@ public final class NIOConnector extends Thread {
 		this.connectQueue = new LinkedBlockingQueue<Connection>();
 	}
 
-	public long getConnectCount() {
-		return connectCount;
-	}
+	public long getConnectCount() { return connectCount; }
 
-	/**
-	 * 添加一个需要异步连接的Connection到队列中，等待连接
-	 * 
-	 * @param Connection
-	 */
+	/* 添加一个需要异步连接的Connection到队列中，等待连接 */
 	public void postConnect(Connection c) {
 		connectQueue.offer(c);
 		selector.wakeup();
@@ -69,6 +59,8 @@ public final class NIOConnector extends Thread {
 						Object att = key.attachment();
 						if (att != null && key.isValid() && key.isConnectable()) {
 							finishConnect(key, att);
+
+							/* FIXME */
 							if (att instanceof  PostgreSQLBackendConnection){//ONLY PG SENG
 								SocketChannel sc = (SocketChannel) key.channel();
 								sendStartupPacket(sc,att);
@@ -117,7 +109,8 @@ public final class NIOConnector extends Thread {
 			if (finishConnect(c, (SocketChannel) c.channel)) {
 				clearSelectionKey(key);
 				c.setId(ConnectIdGenerator.getINSTNCE().getId());
-				System.out.println("----------------ConnectIdGenerator.getINSTNCE().getId()-----------------"+ConnectIdGenerator.getINSTNCE().getId());
+				System.out.println("----------------ConnectIdGenerator.getINSTNCE().getId()-----------------"
+						+ ConnectIdGenerator.getINSTNCE().getId());
 				NIOReactor reactor = reactorPool.getNextReactor();
 				reactor.postRegister(c);	/* 将连接交给某个reactor处理 */
 
@@ -131,8 +124,7 @@ public final class NIOConnector extends Thread {
 	}
 
 	/* 调用channel的finishConnect函数 */
-	private boolean finishConnect(Connection c, SocketChannel channel)
-			throws IOException {
+	private boolean finishConnect(Connection c, SocketChannel channel) throws IOException {
 		System.out.println("----------------finishConnect-----------------");
 		if (channel.isConnectionPending()) {
 			System.out.println("----------------finishConnect-isConnectionPending-----------------");
