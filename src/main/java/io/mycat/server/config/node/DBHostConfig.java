@@ -23,28 +23,31 @@
  */
 package io.mycat.server.config.node;
 
-
+/* 对应一个后端DB */
 public class DBHostConfig {
-    private String hostName;
-    private String ip;
-    private int port;
-    private String url;
-    private String user;
-    private String password;
-    private long idleTimeout = SystemConfig.DEFAULT_IDLE_TIMEOUT; // 连接池中连接空闲超时时间
-    private int maxCon;
-    private int minCon;
-    private String dbType;
-    private String filters = "mergeStat";
-    private long logTime = 300000;
-    private int weight;				
+    private String hostName;    /* 主机名  */
+    private String ip;          /* ip     */
+    private int port;           /* port   */
+    private String url;         /* 连接的url */
+    private String user;        /* 用户名  */
+    private String password;    /* 密码    */
+    private long idleTimeout = SystemConfig.DEFAULT_IDLE_TIMEOUT; /* 连接池中连接空闲超时时间 */
+    private int maxCon;         /* 最大连接数目 */
+    private int minCon;         /* 最小连接数目 */
+    private String dbType;      /* TODO db类型  mysql redis等的 */
+    private String filters = "mergeStat";   /* TODO */
+    private long logTime = 300000;          /* TODO */
+    private int weight;			/* 权值 */
 
-    public DBHostConfig() {
-        super();
-    }
-
-    public DBHostConfig(String hostName, String ip, int port, String url,
-                        String user, String password) {
+    public DBHostConfig() { super(); }
+    public DBHostConfig(
+            String hostName,
+            String ip,
+            int port,
+            String url,
+            String user,
+            String password
+    ) {
         super();
         this.hostName = hostName;
         this.ip = ip;
@@ -54,113 +57,33 @@ public class DBHostConfig {
         this.password = password;
     }
 
-    public String getDbType() {
-        return dbType;
-    }
-
-    public void setDbType(String dbType) {
-        this.dbType = dbType;
-    }
-
-    public long getIdleTimeout() {
-        return idleTimeout;
-    }
-
-    public void setIdleTimeout(long idleTimeout) {
-        this.idleTimeout = idleTimeout;
-    }
-
-    public int getMaxCon() {
-        return maxCon;
-    }
-
-    public void setMaxCon(int maxCon) {
-        this.maxCon = maxCon;
-    }
-
-    public int getMinCon() {
-        return minCon;
-    }
-
-    public void setMinCon(int minCon) {
-        this.minCon = minCon;
-    }
-
-    public String getHostName() {
-        return hostName;
-    }
-
-    public void setHostName(String hostName) {
-        this.hostName = hostName;
-    }
-
-    public String getIp() {
-        return ip;
-    }
-
-    public void setIp(String ip) {
-        this.ip = ip;
-    }
-
-    public int getPort() {
-        return port;
-    }
-
-    public void setPort(int port) {
-        this.port = port;
-    }
-
-    public String getUrl() {
-        return url;
-    }
-
-    public void setUrl(String url) {
-        this.url = url;
-    }
-
-    public String getUser() {
-        return user;
-    }
-
-    public void setUser(String user) {
-        this.user = user;
-    }
-
-    public String getFilters() {
-        return filters;
-    }
-
-    public void setFilters(String filters) {
-        this.filters = filters;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    public long getLogTime() {
-        return logTime;
-    }
-
-    public void setLogTime(long logTime) {
-        this.logTime = logTime;
-    }
-    
-	public int getWeight() {
-		return weight;
-	}
-
-	public void setWeight(int weight) {
-		this.weight = weight;
-	}
+    public String getDbType() { return dbType; }
+    public void setDbType(String dbType) { this.dbType = dbType; }
+    public long getIdleTimeout() { return idleTimeout; }
+    public void setIdleTimeout(long idleTimeout) { this.idleTimeout = idleTimeout; }
+    public int getMaxCon() { return maxCon; }
+    public void setMaxCon(int maxCon) { this.maxCon = maxCon; }
+    public int getMinCon() { return minCon; }
+    public void setMinCon(int minCon) { this.minCon = minCon; }
+    public String getHostName() { return hostName; }
+    public void setHostName(String hostName) { this.hostName = hostName; }
+    public String getIp() { return ip; }
+    public void setIp(String ip) { this.ip = ip; }
+    public int getPort() { return port; }
+    public void setPort(int port) { this.port = port; }
+    public String getUrl() { return url; }
+    public void setUrl(String url) { this.url = url; }
+    public String getUser() { return user; }
+    public void setUser(String user) { this.user = user; }
+    public String getFilters() { return filters; }
+    public void setFilters(String filters) { this.filters = filters; }
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
+    public long getLogTime() { return logTime; }
+    public void setLogTime(long logTime) { this.logTime = logTime; }
+	public int getWeight() { return weight; }
+	public void setWeight(int weight) { this.weight = weight; }
 
     @Override
-    public String toString() {
-        return "DBHostConfig [hostName=" + hostName + ", url=" + url + "]";
-    }
-
+    public String toString() { return "DBHostConfig [hostName=" + hostName + ", url=" + url + "]"; }
 }

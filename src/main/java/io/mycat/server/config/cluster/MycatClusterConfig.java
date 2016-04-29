@@ -27,25 +27,16 @@ package io.mycat.server.config.cluster;
 import java.util.List;
 import java.util.Map;
 
-/**
- * @author mycat
- */
+/* 集群相关的配置 */
 public final class MycatClusterConfig {
-
-    private final Map<String, MycatNode> nodes;
-    private final Map<String, List<String>> groups;
+    private final Map<String, MycatNode> nodes;         /* mycat实例名和MycatNode的对应关系 */
+    private final Map<String, List<String>> groups;     /* cluster中组的概念 */
 
     public MycatClusterConfig( Map<String, MycatNode> nodes,Map<String, List<String>> groups) {
        this.nodes = nodes;
        this.groups = groups;
     }
 
-    public Map<String, MycatNode> getNodes() {
-        return nodes;
-    }
-
-    public Map<String, List<String>> getGroups() {
-        return groups;
-    }
-
+    public Map<String, MycatNode> getNodes() { return nodes; }
+    public Map<String, List<String>> getGroups() { return groups; }
 }

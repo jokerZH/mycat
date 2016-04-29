@@ -26,31 +26,18 @@ package io.mycat.server.config.cluster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * @author mycat
- */
 public class MycatNode {
-	private static final Logger LOGGER = LoggerFactory
-			.getLogger(MycatNode.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(MycatNode.class);
 
-	private final String name;
-	private final MycatNodeConfig config;
+	private final String name;				/* 实例名 */
+	private final MycatNodeConfig config;	/* 单个实例的配置 */
 
 	public MycatNode(MycatNodeConfig config) {
 		this.name = config.getName();
 		this.config = config;
 	}
 
-	public String getName() {
-		return name;
-	}
-
-	public MycatNodeConfig getConfig() {
-		return config;
-	}
-
-	public boolean isOnline() {
-		return (true);
-	}
-
+	public String getName() { return name; }
+	public MycatNodeConfig getConfig() { return config; }
+	public boolean isOnline() { return (true); }
 }

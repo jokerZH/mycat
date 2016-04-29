@@ -27,21 +27,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * 隔离区配置定义
- * 
- * @author mycat
- */
+/* 隔离区配置定义 TODO */
 public final class QuarantineConfig {
-
     private final Map<String, Set<String>> hosts;
 
-    public QuarantineConfig() {
-        hosts = new HashMap<String, Set<String>>();
-    }
-
-    public Map<String, Set<String>> getHosts() {
-        return hosts;
-    }
-
+    public QuarantineConfig() { hosts = new HashMap<String, Set<String>>(); }
+    public Map<String, Set<String>> getHosts() { return hosts; }
 }

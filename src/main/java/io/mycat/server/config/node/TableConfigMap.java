@@ -2,13 +2,8 @@ package io.mycat.server.config.node;
 
 import java.util.HashMap;
 
-/**
- * 支持表名中包含引号[`] 
- * 
- * @author BEN GONG
- */
+/* 表名到TableConfig的转化  支持表名中包含引号[`] */
 public class TableConfigMap extends HashMap<String, TableConfig> {
-
 	private static final long serialVersionUID = -6605226933829917213L;
 
 	@Override

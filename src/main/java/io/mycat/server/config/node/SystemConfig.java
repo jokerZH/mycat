@@ -28,9 +28,7 @@ import io.mycat.server.Isolations;
 import java.io.File;
 import java.io.IOException;
 
-/**
- * 系统基础配置项
- */
+/* 系统基础配置项 */
 public final class SystemConfig {
 
 	public static final String SYS_HOME = "MYCAT_HOME";
@@ -40,73 +38,92 @@ public final class SystemConfig {
 
 	private static final String DEFAULT_SQL_PARSER = "fdbparser";// druidparser
 	private static final int DEFAULT_BUFFER_CHUNK_SIZE = 4096;
-	private int processorBufferLocalPercent;
-	private static final int DEFAULT_PROCESSORS = Runtime.getRuntime()
-			.availableProcessors();
-	private int frontSocketSoRcvbuf = 1024 * 1024;
-	private int frontSocketSoSndbuf = 4 * 1024 * 1024;
-	private int backSocketSoRcvbuf = 4 * 1024 * 1024;// mysql 5.6
-														// net_buffer_length
-														// defaut 4M
-	private int backSocketSoSndbuf = 1024 * 1024;
-	private int frontSocketNoDelay = 1; // 0=false
-	private int backSocketNoDelay = 1; // 1=true
-	public static final int DEFAULT_POOL_SIZE = 128;// 保持后端数据通道的默认最大值
-	public static final long DEFAULT_IDLE_TIMEOUT = 30 * 60 * 1000L;
-	private static final long DEFAULT_PROCESSOR_CHECK_PERIOD = 1 * 1000L;
-	private static final long DEFAULT_DATANODE_IDLE_CHECK_PERIOD = 5 * 60 * 1000L;
-	private static final long DEFAULT_DATANODE_HEARTBEAT_PERIOD = 10 * 1000L;
-	private static final long DEFAULT_CLUSTER_HEARTBEAT_PERIOD = 5 * 1000L;
-	private static final long DEFAULT_CLUSTER_HEARTBEAT_TIMEOUT = 10 * 1000L;
-	private static final int DEFAULT_CLUSTER_HEARTBEAT_RETRY = 10;
-	private static final int DEFAULT_MAX_LIMIT = 100;
-	private static final String DEFAULT_CLUSTER_HEARTBEAT_USER = "_HEARTBEAT_USER_";
-	private static final String DEFAULT_CLUSTER_HEARTBEAT_PASS = "_HEARTBEAT_PASS_";
-	private static final int DEFAULT_PARSER_COMMENT_VERSION = 50148;
-	private static final int DEFAULT_SQL_RECORD_COUNT = 10;
-	private int maxStringLiteralLength = 65535;
-	private int frontWriteQueueSize = 2048;
-	private String bindIp = "0.0.0.0";
-	private int serverPort;
-	private int managerPort;
-	private String charset;
-	private int processors;
-	private int processorExecutor;
-	private int timerExecutor;
-	private int managerExecutor;
-	private long idleTimeout;
-	private int catletClassCheckSeconds = 60;
-	// sql execute timeout (second)
-	private long sqlExecuteTimeout = 300;		/* 后段连接的超时时间 */
+	private static final int DEFAULT_PROCESSORS = Runtime.getRuntime().availableProcessors();	/* cpu个数 */
+	public static final int DEFAULT_POOL_SIZE = 128;								/* 保持后端数据通道的默认最大值 */
+	public static final long DEFAULT_IDLE_TIMEOUT = 30 * 60 * 1000L;				/* 判断连接idle的时间 */
+	private static final long DEFAULT_PROCESSOR_CHECK_PERIOD = 1 * 1000L;			/* TODO 检测的周期 */
+	private static final long DEFAULT_DATANODE_IDLE_CHECK_PERIOD = 5 * 60 * 1000L;	/* 后端node是否空闲的周期 */
+	private static final long DEFAULT_DATANODE_HEARTBEAT_PERIOD = 10 * 1000L;		/* 后端node心跳的周期 */
+	private static final long DEFAULT_CLUSTER_HEARTBEAT_PERIOD = 5 * 1000L;			/* TODO */
+	private static final long DEFAULT_CLUSTER_HEARTBEAT_TIMEOUT = 10 * 1000L;		/* TODO */
+	private static final int DEFAULT_CLUSTER_HEARTBEAT_RETRY = 10;					/* TODO */
+	private static final int DEFAULT_MAX_LIMIT = 100;								/* TODO */
+	private static final String DEFAULT_CLUSTER_HEARTBEAT_USER = "_HEARTBEAT_USER_";/* TODO */
+	private static final String DEFAULT_CLUSTER_HEARTBEAT_PASS = "_HEARTBEAT_PASS_";/* TODO */
+	private static final int DEFAULT_PARSER_COMMENT_VERSION = 50148;				/* TODO */
+	private static final int DEFAULT_SQL_RECORD_COUNT = 10;							/* TODO */
+
+	/* 自增id的类型 */
+	public static final int SEQUENCEHANDLER_LOCALFILE = 0;
+	public static final int SEQUENCEHANDLER_MYSQLDB = 1;
+	public static final int SEQUENCEHANDLER_LOCAL_TIME = 2;
+
+	/* TODO  */
+	public static final int MUTINODELIMIT_SMALL_DATA = 0;
+	public static final int MUTINODELIMIT_LAR_DATA = 1;
+
+	/* TODO */
+	public static final int MUTINODELIMIT_PATCH_SIZE = 100;
+
+
+
+	/* net */
+	private int frontSocketSoRcvbuf = 1024 * 1024;		/* 客户端连接tcp读缓存大小 */
+	private int frontSocketSoSndbuf = 4 * 1024 * 1024;	/* 客户端连接tcp写缓存大小 */
+	private int backSocketSoRcvbuf = 4 * 1024 * 1024;	/* 服务端连接tcp读缓存大小 mysql 5.6 net_buffer_lengt defaut 4M */
+	private int backSocketSoSndbuf = 1024 * 1024;		/* 服务端连接tcp写缓存大小 */
+	private int frontSocketNoDelay = 1; 				/* tcp参数 是否攒个大package在发送 0=false */
+	private int backSocketNoDelay = 1; 					/* 同上 1=true */
+	private int maxStringLiteralLength = 65535;			/* TODO */
+	private int frontWriteQueueSize = 2048;				/* 客户端连接写队列的长度 */
+	private String bindIp = "0.0.0.0";			/* 监听的ip  */
+	private int serverPort;						/* 业务的监听端口 */
+	private int managerPort;					/* mycat管理监听的端口 */
+
+	/* thread num */
+	private int processors;						/* TODO 处理器个数 */
+	private int processorExecutor;				/* TODO 处理的个数 */
+	private int timerExecutor;					/* TODO 定期调度的线程池大小 */
+	private int managerExecutor;				/* TODO */
+
+	/* buffer */
+	private int processorBufferLocalPercent;	/* 线程局部Buffer在总Buffer的个数 */
+	private long processorBufferPool;			/* buffer pool的大小 */
+	private int processorBufferChunk;			/* buffer的大小 */
+
+	/* time */
+	private long idleTimeout;					/* 空闲超时时间 */
+	private int catletClassCheckSeconds = 60;	/* TODO */
+	private long sqlExecuteTimeout = 300;		/* 后段连接的超时时间 单位s */
 	private long processorCheckPeriod;
 	private long dataNodeIdleCheckPeriod;
 	private long dataNodeHeartbeatPeriod;
+
+	/* cluster */
 	private String clusterHeartbeatUser;
 	private String clusterHeartbeatPass;
 	private long clusterHeartbeatPeriod;
 	private long clusterHeartbeatTimeout;
 	private int clusterHeartbeatRetry;
-	private int txIsolation;
-	private int parserCommentVersion;
-	private int sqlRecordCount;
-	private long processorBufferPool;
-	private int processorBufferChunk;
+
+	/* mysql */
+	private int txIsolation;			/* 隔离级别 */
+	private int parserCommentVersion;	/* TODO */
+	private int sqlRecordCount;			/* sql备份的个数 */
 	private int defaultMaxLimit = DEFAULT_MAX_LIMIT;
-	public static final int SEQUENCEHANDLER_LOCALFILE = 0;
-	public static final int SEQUENCEHANDLER_MYSQLDB = 1;
-	public static final int SEQUENCEHANDLER_LOCAL_TIME = 2;
+	private String charset;						/* 使用的字符集 */
+
+	/* sequence */
 	private int sequnceHandlerType = SEQUENCEHANDLER_LOCALFILE;
+
+	/* sql */
 	private String sqlInterceptor = "io.mycat.server.interceptor.impl.DefaultSqlInterceptor";
 	private String sqlInterceptorType = "select";
-	private String sqlInterceptorFile = System.getProperty("user.dir")
-			+ "/logs/sql.txt";
-	public static final int MUTINODELIMIT_SMALL_DATA = 0;
-	public static final int MUTINODELIMIT_LAR_DATA = 1;
+	private String sqlInterceptorFile = System.getProperty("user.dir") + "/logs/sql.txt";
+
+	/* unknown */
 	private int mutiNodeLimitType = MUTINODELIMIT_SMALL_DATA;
-
-	public static final int MUTINODELIMIT_PATCH_SIZE = 100;
 	private int mutiNodePatchSize = MUTINODELIMIT_PATCH_SIZE;
-
 	private String defaultSqlParser = DEFAULT_SQL_PARSER;
 	private int usingAIO = 0;
 	private int packetHeaderSize = 4;
@@ -114,13 +131,6 @@ public final class SystemConfig {
 	private int mycatNodeId = 1;
 	private int useCompression = 0;
 
-	public String getDefaultSqlParser() {
-		return defaultSqlParser;
-	}
-
-	public void setDefaultSqlParser(String defaultSqlParser) {
-		this.defaultSqlParser = defaultSqlParser;
-	}
 
 	public SystemConfig() {
 		this.serverPort = DEFAULT_PORT;
@@ -129,8 +139,7 @@ public final class SystemConfig {
 		this.processors = DEFAULT_PROCESSORS;
 
 		processorBufferChunk = DEFAULT_BUFFER_CHUNK_SIZE;
-		this.processorExecutor = (DEFAULT_PROCESSORS != 1) ? DEFAULT_PROCESSORS * 2
-				: 4;
+		this.processorExecutor = (DEFAULT_PROCESSORS != 1) ? DEFAULT_PROCESSORS * 2 : 4;
 		this.managerExecutor = 2;
 		processorBufferPool = DEFAULT_BUFFER_CHUNK_SIZE * processors * 1000;
 		this.processorBufferLocalPercent = 100;
@@ -147,72 +156,104 @@ public final class SystemConfig {
 		this.txIsolation = Isolations.REPEATED_READ;
 		this.parserCommentVersion = DEFAULT_PARSER_COMMENT_VERSION;
 		this.sqlRecordCount = DEFAULT_SQL_RECORD_COUNT;
-
 	}
 
-	public String getSqlInterceptor() {
-		return sqlInterceptor;
-	}
-
-	public void setSqlInterceptor(String sqlInterceptor) {
-		this.sqlInterceptor = sqlInterceptor;
-	}
-
-	public int getSequnceHandlerType() {
-		return sequnceHandlerType;
-	}
-
-	public void setSequnceHandlerType(int sequnceHandlerType) {
-		this.sequnceHandlerType = sequnceHandlerType;
-	}
-
-	public int getPacketHeaderSize() {
-		return packetHeaderSize;
-	}
-
-	public void setPacketHeaderSize(int packetHeaderSize) {
-		this.packetHeaderSize = packetHeaderSize;
-	}
-
-	public int getMaxPacketSize() {
-		return maxPacketSize;
-	}
-
-	public int getCatletClassCheckSeconds() {
-		return catletClassCheckSeconds;
-	}
-
-	public void setCatletClassCheckSeconds(int catletClassCheckSeconds) {
-		this.catletClassCheckSeconds = catletClassCheckSeconds;
-	}
-
-	public void setMaxPacketSize(int maxPacketSize) {
-		this.maxPacketSize = maxPacketSize;
-	}
-
-	public int getFrontWriteQueueSize() {
-		return frontWriteQueueSize;
-	}
-
-	public void setFrontWriteQueueSize(int frontWriteQueueSize) {
-		this.frontWriteQueueSize = frontWriteQueueSize;
-	}
-
-	public String getBindIp() {
-		return bindIp;
-	}
-
-	public void setBindIp(String bindIp) {
-		this.bindIp = bindIp;
-	}
-
-	public int getDefaultMaxLimit() {
-		return defaultMaxLimit;
-	}
-
-	public void setDefaultMaxLimit(int defaultMaxLimit) {
-		this.defaultMaxLimit = defaultMaxLimit;
-	}
+	public String getDefaultSqlParser() { return defaultSqlParser; }
+	public void setDefaultSqlParser(String defaultSqlParser) { this.defaultSqlParser = defaultSqlParser; }
+	public String getSqlInterceptor() { return sqlInterceptor; }
+	public void setSqlInterceptor(String sqlInterceptor) { this.sqlInterceptor = sqlInterceptor; }
+	public int getSequnceHandlerType() { return sequnceHandlerType; }
+	public void setSequnceHandlerType(int sequnceHandlerType) { this.sequnceHandlerType = sequnceHandlerType; }
+	public int getPacketHeaderSize() { return packetHeaderSize; }
+	public void setPacketHeaderSize(int packetHeaderSize) { this.packetHeaderSize = packetHeaderSize; }
+	public int getMaxPacketSize() { return maxPacketSize; }
+	public int getCatletClassCheckSeconds() { return catletClassCheckSeconds; }
+	public void setCatletClassCheckSeconds(int catletClassCheckSeconds) { this.catletClassCheckSeconds = catletClassCheckSeconds; }
+	public void setMaxPacketSize(int maxPacketSize) { this.maxPacketSize = maxPacketSize; }
+	public int getFrontWriteQueueSize() { return frontWriteQueueSize; }
+	public void setFrontWriteQueueSize(int frontWriteQueueSize) { this.frontWriteQueueSize = frontWriteQueueSize; }
+	public String getBindIp() { return bindIp; }
+	public void setBindIp(String bindIp) { this.bindIp = bindIp; }
+	public int getDefaultMaxLimit() { return defaultMaxLimit; }
+	public void setDefaultMaxLimit(int defaultMaxLimit) { this.defaultMaxLimit = defaultMaxLimit; }
+	public int getUseCompression() { return useCompression; }
+	public void setUseCompression(int useCompression) { this.useCompression = useCompression; }
+	public String getCharset() { return charset; }
+	public void setCharset(String charset) { this.charset = charset; }
+	public int getServerPort() { return serverPort; }
+	public void setServerPort(int serverPort) { this.serverPort = serverPort; }
+	public int getManagerPort() { return managerPort; }
+	public void setManagerPort(int managerPort) { this.managerPort = managerPort; }
+	public int getProcessors() { return processors; }
+	public void setProcessors(int processors) { this.processors = processors; }
+	public int getProcessorExecutor() { return processorExecutor; }
+	public void setProcessorExecutor(int processorExecutor) { this.processorExecutor = processorExecutor; }
+	public int getManagerExecutor() { return managerExecutor; }
+	public void setManagerExecutor(int managerExecutor) { this.managerExecutor = managerExecutor; }
+	public int getTimerExecutor() { return timerExecutor; }
+	public void setTimerExecutor(int timerExecutor) { this.timerExecutor = timerExecutor; }
+	public long getIdleTimeout() { return idleTimeout; }
+	public void setIdleTimeout(long idleTimeout) { this.idleTimeout = idleTimeout; }
+	public long getProcessorCheckPeriod() { return processorCheckPeriod; }
+	public void setProcessorCheckPeriod(long processorCheckPeriod) { this.processorCheckPeriod = processorCheckPeriod; }
+	public long getDataNodeIdleCheckPeriod() { return dataNodeIdleCheckPeriod; }
+	public void setDataNodeIdleCheckPeriod(long dataNodeIdleCheckPeriod) { this.dataNodeIdleCheckPeriod = dataNodeIdleCheckPeriod; }
+	public long getDataNodeHeartbeatPeriod() { return dataNodeHeartbeatPeriod; }
+	public void setDataNodeHeartbeatPeriod(long dataNodeHeartbeatPeriod) { this.dataNodeHeartbeatPeriod = dataNodeHeartbeatPeriod; }
+	public String getClusterHeartbeatUser() { return clusterHeartbeatUser; }
+	public void setClusterHeartbeatUser(String clusterHeartbeatUser) { this.clusterHeartbeatUser = clusterHeartbeatUser; }
+	public long getSqlExecuteTimeout() { return sqlExecuteTimeout; }
+	public void setSqlExecuteTimeout(long sqlExecuteTimeout) { this.sqlExecuteTimeout = sqlExecuteTimeout; }
+	public String getClusterHeartbeatPass() { return clusterHeartbeatPass; }
+	public void setClusterHeartbeatPass(String clusterHeartbeatPass) { this.clusterHeartbeatPass = clusterHeartbeatPass; }
+	public long getClusterHeartbeatPeriod() { return clusterHeartbeatPeriod; }
+	public void setClusterHeartbeatPeriod(long clusterHeartbeatPeriod) { this.clusterHeartbeatPeriod = clusterHeartbeatPeriod; }
+	public long getClusterHeartbeatTimeout() { return clusterHeartbeatTimeout; }
+	public void setClusterHeartbeatTimeout(long clusterHeartbeatTimeout) { this.clusterHeartbeatTimeout = clusterHeartbeatTimeout; }
+	public int getFrontsocketsorcvbuf() { return frontSocketSoRcvbuf; }
+	public int getFrontsocketsosndbuf() { return frontSocketSoSndbuf; }
+	public int getBacksocketsorcvbuf() { return backSocketSoRcvbuf; }
+	public int getBacksocketsosndbuf() { return backSocketSoSndbuf; }
+	public int getClusterHeartbeatRetry() { return clusterHeartbeatRetry; }
+	public void setClusterHeartbeatRetry(int clusterHeartbeatRetry) { this.clusterHeartbeatRetry = clusterHeartbeatRetry; }
+	public int getTxIsolation() { return txIsolation; }
+	public void setTxIsolation(int txIsolation) { this.txIsolation = txIsolation; }
+	public int getParserCommentVersion() { return parserCommentVersion; }
+	public void setParserCommentVersion(int parserCommentVersion) { this.parserCommentVersion = parserCommentVersion; }
+	public int getSqlRecordCount() { return sqlRecordCount; }
+	public void setSqlRecordCount(int sqlRecordCount) { this.sqlRecordCount = sqlRecordCount; }
+	public long getProcessorBufferPool() { return processorBufferPool; }
+	public void setProcessorBufferPool(long processorBufferPool) { this.processorBufferPool = processorBufferPool; }
+	public int getProcessorBufferChunk() { return processorBufferChunk; }
+	public void setProcessorBufferChunk(int processorBufferChunk) { this.processorBufferChunk = processorBufferChunk; }
+	public int getFrontSocketSoRcvbuf() { return frontSocketSoRcvbuf; }
+	public void setFrontSocketSoRcvbuf(int frontSocketSoRcvbuf) { this.frontSocketSoRcvbuf = frontSocketSoRcvbuf; }
+	public int getFrontSocketSoSndbuf() { return frontSocketSoSndbuf; }
+	public void setFrontSocketSoSndbuf(int frontSocketSoSndbuf) { this.frontSocketSoSndbuf = frontSocketSoSndbuf; }
+	public int getBackSocketSoRcvbuf() { return backSocketSoRcvbuf; }
+	public void setBackSocketSoRcvbuf(int backSocketSoRcvbuf) { this.backSocketSoRcvbuf = backSocketSoRcvbuf; }
+	public int getBackSocketSoSndbuf() { return backSocketSoSndbuf; }
+	public void setBackSocketSoSndbuf(int backSocketSoSndbuf) { this.backSocketSoSndbuf = backSocketSoSndbuf; }
+	public int getFrontSocketNoDelay() { return frontSocketNoDelay; }
+	public void setFrontSocketNoDelay(int frontSocketNoDelay) { this.frontSocketNoDelay = frontSocketNoDelay; }
+	public int getBackSocketNoDelay() { return backSocketNoDelay; }
+	public void setBackSocketNoDelay(int backSocketNoDelay) { this.backSocketNoDelay = backSocketNoDelay; }
+	public int getMaxStringLiteralLength() { return maxStringLiteralLength; }
+	public void setMaxStringLiteralLength(int maxStringLiteralLength) { this.maxStringLiteralLength = maxStringLiteralLength; }
+	public int getMutiNodeLimitType() { return mutiNodeLimitType; }
+	public void setMutiNodeLimitType(int mutiNodeLimitType) { this.mutiNodeLimitType = mutiNodeLimitType; }
+	public int getMutiNodePatchSize() { return mutiNodePatchSize; }
+	public void setMutiNodePatchSize(int mutiNodePatchSize) { this.mutiNodePatchSize = mutiNodePatchSize; }
+	public int getProcessorBufferLocalPercent() { return processorBufferLocalPercent; }
+	public void setProcessorBufferLocalPercent(int processorBufferLocalPercent) { this.processorBufferLocalPercent = processorBufferLocalPercent; }
+	public String getSqlInterceptorType() { return sqlInterceptorType; }
+	public void setSqlInterceptorType(String sqlInterceptorType) { this.sqlInterceptorType = sqlInterceptorType; }
+	public String getSqlInterceptorFile() { return sqlInterceptorFile; }
+	public void setSqlInterceptorFile(String sqlInterceptorFile) { this.sqlInterceptorFile = sqlInterceptorFile; }
+	public int getUsingAIO() { return usingAIO; }
+	public void setUsingAIO(int usingAIO) { this.usingAIO = usingAIO; }
+	public int getMycatNodeId() { return mycatNodeId; }
+	public void setMycatNodeId(int mycatNodeId) { this.mycatNodeId = mycatNodeId; }
 
 	public static String getHomePath() {
 		String home = System.getProperty(SystemConfig.SYS_HOME);
@@ -249,316 +290,6 @@ public final class SystemConfig {
 		}
 
 		return home;
-	}
-
-	public int getUseCompression() {
-		return useCompression;
-	}
-
-	public void setUseCompression(int useCompression) {
-		this.useCompression = useCompression;
-	}
-
-	public String getCharset() {
-		return charset;
-	}
-
-	public void setCharset(String charset) {
-		this.charset = charset;
-	}
-
-	public int getServerPort() {
-		return serverPort;
-	}
-
-	public void setServerPort(int serverPort) {
-		this.serverPort = serverPort;
-	}
-
-	public int getManagerPort() {
-		return managerPort;
-	}
-
-	public void setManagerPort(int managerPort) {
-		this.managerPort = managerPort;
-	}
-
-	public int getProcessors() {
-		return processors;
-	}
-
-	public void setProcessors(int processors) {
-		this.processors = processors;
-	}
-
-	public int getProcessorExecutor() {
-		return processorExecutor;
-	}
-
-	public void setProcessorExecutor(int processorExecutor) {
-		this.processorExecutor = processorExecutor;
-	}
-
-	public int getManagerExecutor() {
-		return managerExecutor;
-	}
-
-	public void setManagerExecutor(int managerExecutor) {
-		this.managerExecutor = managerExecutor;
-	}
-
-	public int getTimerExecutor() {
-		return timerExecutor;
-	}
-
-	public void setTimerExecutor(int timerExecutor) {
-		this.timerExecutor = timerExecutor;
-	}
-
-	public long getIdleTimeout() {
-		return idleTimeout;
-	}
-
-	public void setIdleTimeout(long idleTimeout) {
-		this.idleTimeout = idleTimeout;
-	}
-
-	public long getProcessorCheckPeriod() {
-		return processorCheckPeriod;
-	}
-
-	public void setProcessorCheckPeriod(long processorCheckPeriod) {
-		this.processorCheckPeriod = processorCheckPeriod;
-	}
-
-	public long getDataNodeIdleCheckPeriod() {
-		return dataNodeIdleCheckPeriod;
-	}
-
-	public void setDataNodeIdleCheckPeriod(long dataNodeIdleCheckPeriod) {
-		this.dataNodeIdleCheckPeriod = dataNodeIdleCheckPeriod;
-	}
-
-	public long getDataNodeHeartbeatPeriod() {
-		return dataNodeHeartbeatPeriod;
-	}
-
-	public void setDataNodeHeartbeatPeriod(long dataNodeHeartbeatPeriod) {
-		this.dataNodeHeartbeatPeriod = dataNodeHeartbeatPeriod;
-	}
-
-	public String getClusterHeartbeatUser() {
-		return clusterHeartbeatUser;
-	}
-
-	public void setClusterHeartbeatUser(String clusterHeartbeatUser) {
-		this.clusterHeartbeatUser = clusterHeartbeatUser;
-	}
-
-	public long getSqlExecuteTimeout() { return sqlExecuteTimeout; }
-
-	public void setSqlExecuteTimeout(long sqlExecuteTimeout) {
-		this.sqlExecuteTimeout = sqlExecuteTimeout;
-	}
-
-	public String getClusterHeartbeatPass() {
-		return clusterHeartbeatPass;
-	}
-
-	public void setClusterHeartbeatPass(String clusterHeartbeatPass) {
-		this.clusterHeartbeatPass = clusterHeartbeatPass;
-	}
-
-	public long getClusterHeartbeatPeriod() {
-		return clusterHeartbeatPeriod;
-	}
-
-	public void setClusterHeartbeatPeriod(long clusterHeartbeatPeriod) {
-		this.clusterHeartbeatPeriod = clusterHeartbeatPeriod;
-	}
-
-	public long getClusterHeartbeatTimeout() {
-		return clusterHeartbeatTimeout;
-	}
-
-	public void setClusterHeartbeatTimeout(long clusterHeartbeatTimeout) {
-		this.clusterHeartbeatTimeout = clusterHeartbeatTimeout;
-	}
-
-	public int getFrontsocketsorcvbuf() {
-		return frontSocketSoRcvbuf;
-	}
-
-	public int getFrontsocketsosndbuf() {
-		return frontSocketSoSndbuf;
-	}
-
-	public int getBacksocketsorcvbuf() {
-		return backSocketSoRcvbuf;
-	}
-
-	public int getBacksocketsosndbuf() {
-		return backSocketSoSndbuf;
-	}
-
-	public int getClusterHeartbeatRetry() {
-		return clusterHeartbeatRetry;
-	}
-
-	public void setClusterHeartbeatRetry(int clusterHeartbeatRetry) {
-		this.clusterHeartbeatRetry = clusterHeartbeatRetry;
-	}
-
-	public int getTxIsolation() {
-		return txIsolation;
-	}
-
-	public void setTxIsolation(int txIsolation) {
-		this.txIsolation = txIsolation;
-	}
-
-	public int getParserCommentVersion() {
-		return parserCommentVersion;
-	}
-
-	public void setParserCommentVersion(int parserCommentVersion) {
-		this.parserCommentVersion = parserCommentVersion;
-	}
-
-	public int getSqlRecordCount() {
-		return sqlRecordCount;
-	}
-
-	public void setSqlRecordCount(int sqlRecordCount) {
-		this.sqlRecordCount = sqlRecordCount;
-	}
-
-	public long getProcessorBufferPool() {
-		return processorBufferPool;
-	}
-
-	public void setProcessorBufferPool(long processorBufferPool) {
-		this.processorBufferPool = processorBufferPool;
-	}
-
-	public int getProcessorBufferChunk() {
-		return processorBufferChunk;
-	}
-
-	public void setProcessorBufferChunk(int processorBufferChunk) {
-		this.processorBufferChunk = processorBufferChunk;
-	}
-
-	public int getFrontSocketSoRcvbuf() {
-		return frontSocketSoRcvbuf;
-	}
-
-	public void setFrontSocketSoRcvbuf(int frontSocketSoRcvbuf) {
-		this.frontSocketSoRcvbuf = frontSocketSoRcvbuf;
-	}
-
-	public int getFrontSocketSoSndbuf() {
-		return frontSocketSoSndbuf;
-	}
-
-	public void setFrontSocketSoSndbuf(int frontSocketSoSndbuf) {
-		this.frontSocketSoSndbuf = frontSocketSoSndbuf;
-	}
-
-	public int getBackSocketSoRcvbuf() {
-		return backSocketSoRcvbuf;
-	}
-
-	public void setBackSocketSoRcvbuf(int backSocketSoRcvbuf) {
-		this.backSocketSoRcvbuf = backSocketSoRcvbuf;
-	}
-
-	public int getBackSocketSoSndbuf() {
-		return backSocketSoSndbuf;
-	}
-
-	public void setBackSocketSoSndbuf(int backSocketSoSndbuf) {
-		this.backSocketSoSndbuf = backSocketSoSndbuf;
-	}
-
-	public int getFrontSocketNoDelay() {
-		return frontSocketNoDelay;
-	}
-
-	public void setFrontSocketNoDelay(int frontSocketNoDelay) {
-		this.frontSocketNoDelay = frontSocketNoDelay;
-	}
-
-	public int getBackSocketNoDelay() {
-		return backSocketNoDelay;
-	}
-
-	public void setBackSocketNoDelay(int backSocketNoDelay) {
-		this.backSocketNoDelay = backSocketNoDelay;
-	}
-
-	public int getMaxStringLiteralLength() {
-		return maxStringLiteralLength;
-	}
-
-	public void setMaxStringLiteralLength(int maxStringLiteralLength) {
-		this.maxStringLiteralLength = maxStringLiteralLength;
-	}
-
-	public int getMutiNodeLimitType() {
-		return mutiNodeLimitType;
-	}
-
-	public void setMutiNodeLimitType(int mutiNodeLimitType) {
-		this.mutiNodeLimitType = mutiNodeLimitType;
-	}
-
-	public int getMutiNodePatchSize() {
-		return mutiNodePatchSize;
-	}
-
-	public void setMutiNodePatchSize(int mutiNodePatchSize) {
-		this.mutiNodePatchSize = mutiNodePatchSize;
-	}
-
-	public int getProcessorBufferLocalPercent() {
-		return processorBufferLocalPercent;
-	}
-
-	public void setProcessorBufferLocalPercent(int processorBufferLocalPercent) {
-		this.processorBufferLocalPercent = processorBufferLocalPercent;
-	}
-
-	public String getSqlInterceptorType() {
-		return sqlInterceptorType;
-	}
-
-	public void setSqlInterceptorType(String sqlInterceptorType) {
-		this.sqlInterceptorType = sqlInterceptorType;
-	}
-
-	public String getSqlInterceptorFile() {
-		return sqlInterceptorFile;
-	}
-
-	public void setSqlInterceptorFile(String sqlInterceptorFile) {
-		this.sqlInterceptorFile = sqlInterceptorFile;
-	}
-
-	public int getUsingAIO() {
-		return usingAIO;
-	}
-
-	public void setUsingAIO(int usingAIO) {
-		this.usingAIO = usingAIO;
-	}
-
-	public int getMycatNodeId() {
-		return mycatNodeId;
-	}
-
-	public void setMycatNodeId(int mycatNodeId) {
-		this.mycatNodeId = mycatNodeId;
 	}
 
 	@Override

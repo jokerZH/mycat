@@ -30,40 +30,33 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 
-/**
- * @author mycat
- */
+/* 逻辑db的配置信息 */
 public class SchemaConfig {
     private Random random = new Random();
-    private String name;
-    private Map<String, TableConfig> tables;
-    private boolean noSharding;
-    private String dataNode;
-    private Set<String> metaDataNodes;
-    private Set<String> allDataNodes;
-    /**
-     * when a select sql has no limit condition ,and default max limit to prevent memory problem
-     * when return a large result set
-     */
-    private int defaultMaxLimit;
-    private boolean checkSQLSchema;
-    /**
-     * key is join relation ,A.ID=B.PARENT_ID value is Root Table ,if a->b*->c* ,then A is root
-     * table
-     */
-    private Map<String, TableConfig> joinRel2TableMap = new HashMap<String, TableConfig>();
-    private String[] allDataNodeStrArr;
-    private boolean needSupportMultiDBType = false;
-    private String defaultDataNodeDbType;
-    private Map<String, String> dataNodeDbTypeMap = new HashMap<>();
 
-	public SchemaConfig(){
-		super();
-	}
+    private String name;						/* ldbName */
+    private Map<String, TableConfig> tables; 	/* 逻辑db上的表 */
+    private boolean noSharding;					/* 是否是分库 */
+    private String dataNode;					/* 默认后端DB */
+    private Set<String> metaDataNodes;			/* 存放db信息,用于查看逻辑表信息的时候使用,所以一个分表逻辑表只需要保存一个db就好了 */
+    private Set<String> allDataNodes;			/* 存放所有db信息 */
 
-	public SchemaConfig(String name, String dataNode,
-			Map<String, TableConfig> tables, int defaultMaxLimit,
-			boolean checkSQLschema) {
+    private int defaultMaxLimit;		/* 当sql没有limit限制的时候,会自动加上defaultMaxLimit的限制 */
+    private boolean checkSQLSchema;		/* TODO */
+    private Map<String/*join relation ,A.ID=B.PARENT_ID*/, TableConfig/*rootTable*/> joinRel2TableMap = new HashMap<String, TableConfig>(); /* TODO 有join关系的表 if a->b*->c* ,then A is root table */
+    private String[] allDataNodeStrArr;					/* allDataNodex的数组形式 */
+    private boolean needSupportMultiDBType = false;		/* TODO */
+    private String defaultDataNodeDbType;				/* TODO */
+    private Map<String, String> dataNodeDbTypeMap = new HashMap<>();	/* TODO */
+
+	public SchemaConfig(){ super(); }
+	public SchemaConfig(
+			String name,
+			String dataNode,
+			Map<String, TableConfig> tables,
+			int defaultMaxLimit,
+			boolean checkSQLschema
+	) {
 		this.name = name;
 		this.dataNode = dataNode;
 		this.checkSQLSchema = checkSQLschema;
@@ -74,14 +67,15 @@ public class SchemaConfig {
     public void setTables(Map<String, TableConfig> tables) {
         this.tables = tables;
         buildJoinMap(tables);
+
         this.noSharding = (tables == null || tables.isEmpty());
         if (noSharding && dataNode == null) {
-            throw new RuntimeException(name
-                    + " in noSharding mode schema must have default dataNode ");
+            throw new RuntimeException(name + " in noSharding mode schema must have default dataNode ");
         }
+
         this.metaDataNodes = buildMetaDataNodes();
         this.allDataNodes = buildAllDataNodes();
-//		this.metaDataNodes = buildAllDataNodes();
+
         if (this.allDataNodes != null && !this.allDataNodes.isEmpty()) {
             String[] dnArr = new String[this.allDataNodes.size()];
             dnArr = this.allDataNodes.toArray(dnArr);
@@ -91,109 +85,47 @@ public class SchemaConfig {
         }
     }
 
-	public String getDefaultDataNodeDbType()
-	{
-		return defaultDataNodeDbType;
-	}
+	public String getDefaultDataNodeDbType() { return defaultDataNodeDbType; }
+	public void setDefaultDataNodeDbType(String defaultDataNodeDbType) { this.defaultDataNodeDbType = defaultDataNodeDbType; }
+	public boolean isCheckSQLSchema() { return checkSQLSchema; }
+	public void setName(String name) { this.name = name; }
+	public int getDefaultMaxLimit() { return defaultMaxLimit; }
+	public void setCheckSQLSchema(boolean checkSQLSchema) { this.checkSQLSchema = checkSQLSchema; }
+	public void setDefaultMaxLimit(int defaultMaxLimit) { this.defaultMaxLimit = defaultMaxLimit; }
+	public boolean isNeedSupportMultiDBType()  { return needSupportMultiDBType; }
+	public void setNeedSupportMultiDBType(boolean needSupportMultiDBType)  { this.needSupportMultiDBType = needSupportMultiDBType; }
+	public Map<String, TableConfig> getJoinRel2TableMap() { return joinRel2TableMap; }
+	public String getName() { return name; }
+	public String getDataNode() {return dataNode; }
+	public void setDataNode(String dataNode) { this.dataNode = dataNode; }
+	public Map<String, TableConfig> getTables() { return tables; }
+	public boolean isNoSharding() { return noSharding; }
+	public Set<String> getMetaDataNodes() { return metaDataNodes; }
+	public Set<String> getAllDataNodes() { return allDataNodes; }
+	public Map<String, String> getDataNodeDbTypeMap()  { return dataNodeDbTypeMap; }
+	public void setDataNodeDbTypeMap(Map<String, String> dataNodeDbTypeMap)  { this.dataNodeDbTypeMap = dataNodeDbTypeMap; }
 
-	public void setDefaultDataNodeDbType(String defaultDataNodeDbType)
-	{
-		this.defaultDataNodeDbType = defaultDataNodeDbType;
-	}
 
-	public boolean isCheckSQLSchema() {
-		return checkSQLSchema;
-	}
 
-	public void setName(String name) {
-		this.name = name;
-	}
-
-	public int getDefaultMaxLimit() {
-		return defaultMaxLimit;
-	}
-
-	public void setCheckSQLSchema(boolean checkSQLSchema) {
-		this.checkSQLSchema = checkSQLSchema;
-	}
-
-	public void setDefaultMaxLimit(int defaultMaxLimit) {
-		this.defaultMaxLimit = defaultMaxLimit;
-	}
-
+	/* 构建join表的关系, 结果子啊joinRel2TalbeMap中 */
 	private void buildJoinMap(Map<String, TableConfig> tables2) {
-
 		if (tables == null || tables.isEmpty()) {
 			return;
 		}
+
 		for (TableConfig tc : tables.values()) {
 			if (tc.isChildTable()) {
 				TableConfig rootTc = tc.getRootParent();
-				String joinRel1 = tc.getName() + '.' + tc.getJoinKey() + '='
-						+ tc.getParentTC().getName() + '.' + tc.getParentKey();
-				String joinRel2 = tc.getParentTC().getName() + '.'
-						+ tc.getParentKey() + '=' + tc.getName() + '.'
-						+ tc.getJoinKey();
+				/* 最多两层 FIXME */
+				String joinRel1 = tc.getName() + '.' + tc.getJoinKey() + '=' + tc.getParentTC().getName() + '.' + tc.getParentKey();
+				String joinRel2 = tc.getParentTC().getName() + '.' + tc.getParentKey() + '=' + tc.getName() + '.' + tc.getJoinKey();
 				joinRel2TableMap.put(joinRel1, rootTc);
 				joinRel2TableMap.put(joinRel2, rootTc);
 			}
-
 		}
-
 	}
 
-	public boolean isNeedSupportMultiDBType()
-	{
-		return needSupportMultiDBType;
-	}
-
-	public void setNeedSupportMultiDBType(boolean needSupportMultiDBType)
-	{
-		this.needSupportMultiDBType = needSupportMultiDBType;
-	}
-
-	public Map<String, TableConfig> getJoinRel2TableMap() {
-		return joinRel2TableMap;
-	}
-
-	public String getName() {
-		return name;
-	}
-
-	public String getDataNode() {
-		return dataNode;
-	}
-
-	public void setDataNode(String dataNode) {
-		this.dataNode = dataNode;
-	}
-
-	public Map<String, TableConfig> getTables() {
-		return tables;
-	}
-
-	public boolean isNoSharding() {
-		return noSharding;
-	}
-
-	public Set<String> getMetaDataNodes() {
-		return metaDataNodes;
-	}
-
-	public Set<String> getAllDataNodes() {
-		return allDataNodes;
-	}
-
-	public Map<String, String> getDataNodeDbTypeMap()
-	{
-		return dataNodeDbTypeMap;
-	}
-
-	public void setDataNodeDbTypeMap(Map<String, String> dataNodeDbTypeMap)
-	{
-		this.dataNodeDbTypeMap = dataNodeDbTypeMap;
-	}
-
+	/* 随机获得一个db */
 	public String getRandomDataNode() {
 		if (this.allDataNodeStrArr == null) {
 			return null;
@@ -202,9 +134,7 @@ public class SchemaConfig {
 		return this.allDataNodeStrArr[index];
 	}
 
-	/**
-	 * 取得含有不同Meta信息的数据节点,比如表和表结构。
-	 */
+	/* 取得含有不同Meta信息的数据节点,比如表和表结构。 */
 	private Set<String> buildMetaDataNodes() {
 		Set<String> set = new HashSet<String>();
 		if (!isEmpty(dataNode)) {
@@ -235,8 +165,5 @@ public class SchemaConfig {
 		return set;
 	}
 
-	private static boolean isEmpty(String str) {
-		return ((str == null) || (str.length() == 0));
-	}
-
+	private static boolean isEmpty(String str) { return ((str == null) || (str.length() == 0)); }
 }

@@ -30,16 +30,13 @@ import io.mycat.route.function.AbstractPartitionAlgorithm;
 import io.mycat.server.config.ConfigException;
 
 
-/**
- * 分片规则，column是用于分片的数据库物理字段
- * @author mycat
- */
+/* 分片规则 */
 public class RuleConfig {
-	private final String name;
-	private final String column;
-	private final String functionName;
-	private AbstractPartitionAlgorithm ruleAlgorithm;
-	private Map<String, Object> props = new HashMap<String, Object>();
+	private final String name;							/* rule名字 */
+	private final String column;						/* sharding id */
+	private final String functionName;					/* TODO */
+	private AbstractPartitionAlgorithm ruleAlgorithm;	/* 负责根据sharding value计算对应下标 */
+	private Map<String, Object> props = new HashMap<String, Object>();	/* TruleAlgorithm的参数  */
 
 	public RuleConfig(String name,String column, String functionName) {
 		if (name == null) {
@@ -56,26 +53,11 @@ public class RuleConfig {
 		this.column = column.toUpperCase();
 	}
 
-	public AbstractPartitionAlgorithm getRuleAlgorithm() {
-		return ruleAlgorithm;
-	}
-	public void setRuleAlgorithm(AbstractPartitionAlgorithm ruleAlgorithm) {
-		this.ruleAlgorithm = ruleAlgorithm;
-	}
-	public String getColumn() {
-		return column;
-	}
-	public String getFunctionName() {
-		return functionName;
-	}
-	public Map<String, Object> getProps() {
-		return props;
-	}
-	public void setProps(Map<String, Object> props) {
-		this.props = props;
-	}
-	public String getName() {
-		return name;
-	}
-
+	public AbstractPartitionAlgorithm getRuleAlgorithm() { return ruleAlgorithm; }
+	public void setRuleAlgorithm(AbstractPartitionAlgorithm ruleAlgorithm) { this.ruleAlgorithm = ruleAlgorithm; }
+	public String getColumn() { return column; }
+	public String getFunctionName() { return functionName; }
+	public Map<String, Object> getProps() { return props; }
+	public void setProps(Map<String, Object> props) { this.props = props; }
+	public String getName() { return name; }
 }

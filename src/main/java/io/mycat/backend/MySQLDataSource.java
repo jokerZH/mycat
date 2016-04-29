@@ -32,9 +32,6 @@ import io.mycat.server.config.node.DBHostConfig;
 import io.mycat.server.config.node.DataHostConfig;
 import io.mycat.server.executors.ResponseHandler;
 
-/**
- * @author mycat
- */
 public class MySQLDataSource extends PhysicalDatasource {
 
 	private final MySQLBackendConnectionFactory factory;

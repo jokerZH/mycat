@@ -24,8 +24,8 @@
 package io.mycat.backend.heartbeat;
 
 import io.mycat.backend.HeartbeatRecorder;
-
 import java.util.concurrent.atomic.AtomicBoolean;
+
 
 public abstract class DBHeartbeat {
 	public static final int DB_SYN_ERROR = -1;
@@ -35,93 +35,54 @@ public abstract class DBHeartbeat {
 	public static final int ERROR_STATUS = -1;
 	public static final int TIMEOUT_STATUS = -2;
 	public static final int INIT_STATUS = 0;
-	private static final long DEFAULT_HEARTBEAT_TIMEOUT = 30 * 1000L;
-	private static final int DEFAULT_HEARTBEAT_RETRY = 10;
+
+	private static final long DEFAULT_HEARTBEAT_TIMEOUT = 30 * 1000L;	/* 30s */
+	private static final int DEFAULT_HEARTBEAT_RETRY = 10;				/* 10次 */
+
 	// heartbeat config
-	protected long heartbeatTimeout = DEFAULT_HEARTBEAT_TIMEOUT; // 心跳超时时间
-	protected int heartbeatRetry = DEFAULT_HEARTBEAT_RETRY; // 检查连接发生异常到切换，重试次数
-	protected String heartbeatSQL;// 静态心跳语句
-	protected final AtomicBoolean isStop = new AtomicBoolean(true);
-	protected final AtomicBoolean isChecking = new AtomicBoolean(false);
-	protected int errorCount;
-	protected volatile int status;
-	protected final HeartbeatRecorder recorder = new HeartbeatRecorder();
+	protected long 	heartbeatTimeout = DEFAULT_HEARTBEAT_TIMEOUT;	/* 心跳超时时间 */
+	protected int 	heartbeatRetry = DEFAULT_HEARTBEAT_RETRY; 		/* 检查连接发生异常到切换，重试次数 */
+	protected String heartbeatSQL;									/* 静态心跳语句 */
+
+	protected final AtomicBoolean isStop = new AtomicBoolean(true);			/* TODO */
+	protected final AtomicBoolean isChecking = new AtomicBoolean(false); 	/* TODO */
+	protected int errorCount;			/* TODO */
+	protected volatile int status;		/* 当前的状态 */
+	protected final HeartbeatRecorder recorder = new HeartbeatRecorder(); 	/* TODO */
 
 	private volatile Integer slaveBehindMaster;
 	private volatile int dbSynStatus = DB_SYN_NORMAL;
 
-	public Integer getSlaveBehindMaster() {
-		return slaveBehindMaster;
-	}
+	public Integer getSlaveBehindMaster() { return slaveBehindMaster; }
+	public void setSlaveBehindMaster(Integer slaveBehindMaster) { this.slaveBehindMaster = slaveBehindMaster; }
+	public int getDbSynStatus() { return dbSynStatus; }
+	public void setDbSynStatus(int dbSynStatus) { this.dbSynStatus = dbSynStatus; }
+	public int getStatus() { return status; }
+	public boolean isChecking() { return isChecking.get(); }
+	public boolean isStop() { return isStop.get(); }
+	public int getErrorCount() { return errorCount; }
+	public HeartbeatRecorder getRecorder() { return recorder; }
+	public long getHeartbeatTimeout() { return heartbeatTimeout; }
+	public void setHeartbeatTimeout(long heartbeatTimeout) { this.heartbeatTimeout = heartbeatTimeout; }
+	public int getHeartbeatRetry() { return heartbeatRetry; }
+	public void setHeartbeatRetry(int heartbeatRetry) { this.heartbeatRetry = heartbeatRetry; }
+	public String getHeartbeatSQL() { return heartbeatSQL; }
+	public void setHeartbeatSQL(String heartbeatSQL) { this.heartbeatSQL = heartbeatSQL; }
+	public boolean isNeedHeartbeat() { return heartbeatSQL != null; }
 
-	public int getDbSynStatus() {
-		return dbSynStatus;
-	}
 
-	public void setDbSynStatus(int dbSynStatus) {
-		this.dbSynStatus = dbSynStatus;
-	}
-
-	public void setSlaveBehindMaster(Integer slaveBehindMaster) {
-		this.slaveBehindMaster = slaveBehindMaster;
-	}
-
-	public int getStatus() {
-		return status;
-	}
-
-	public boolean isChecking() {
-		return isChecking.get();
-	}
-
+	/* TODO 开始心跳 */
 	public abstract void start();
 
+	/* TODO 停止心跳 */
 	public abstract void stop();
 
-	public boolean isStop() {
-		return isStop.get();
-	}
-
-	public int getErrorCount() {
-		return errorCount;
-	}
-
-	public HeartbeatRecorder getRecorder() {
-		return recorder;
-	}
-
+	/* TODO 获得上次心跳时间 */
 	public abstract String getLastActiveTime();
 
+	/* TODO 获得超时时间 */
 	public abstract long getTimeout();
 
+	/* 做一次心跳 */
 	public abstract void heartbeat();
-
-	public long getHeartbeatTimeout() {
-		return heartbeatTimeout;
-	}
-
-	public void setHeartbeatTimeout(long heartbeatTimeout) {
-		this.heartbeatTimeout = heartbeatTimeout;
-	}
-
-	public int getHeartbeatRetry() {
-		return heartbeatRetry;
-	}
-
-	public void setHeartbeatRetry(int heartbeatRetry) {
-		this.heartbeatRetry = heartbeatRetry;
-	}
-
-	public String getHeartbeatSQL() {
-		return heartbeatSQL;
-	}
-
-	public void setHeartbeatSQL(String heartbeatSQL) {
-		this.heartbeatSQL = heartbeatSQL;
-	}
-
-	public boolean isNeedHeartbeat() {
-		return heartbeatSQL != null;
-	}
-
 }

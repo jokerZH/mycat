@@ -33,9 +33,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * @author mycat
- */
 public class BeanConfig implements Cloneable {
     private static final ReflectionProvider refProvider = new ReflectionProvider();
 

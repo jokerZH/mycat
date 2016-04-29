@@ -37,9 +37,7 @@ import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 
-/**
- * @author mycat
- */
+/* 对应mycat的配置 */
 public class MycatConfig implements ConfigReLoader{
 	private static final Logger LOGGER = LoggerFactory.getLogger("MycatConfig");
 
@@ -47,25 +45,19 @@ public class MycatConfig implements ConfigReLoader{
 	private static final int ROLLBACK = 2;
     private static final int RELOAD_ALL = 3;
 
+	/* system */
 	private volatile SystemConfig system;
+	/* cluster */
 	private volatile MycatClusterConfig cluster;
-	private volatile MycatClusterConfig _cluster;
 	private volatile QuarantineConfig quarantine;
-	private volatile QuarantineConfig _quarantine;
-	private volatile Map<String, UserConfig> users;
-	private volatile Map<String, UserConfig> _users;
-	private volatile Map<String, SchemaConfig> schemas;
-	private volatile Map<String, SchemaConfig> _schemas;
+	/* mycat */
+	private volatile Map<String/*userName*/, UserConfig> users;		/* 用户信息 */
+	private volatile Map<String/*ldbName*/, SchemaConfig> schemas;	/* 逻辑db信息 */
 	private volatile Map<String, PhysicalDBNode> dataNodes;
-	private volatile Map<String, PhysicalDBNode> _dataNodes;
-	private volatile Map<String, PhysicalDBPool> dataHosts;
-	private volatile Map<String, PhysicalDBPool> _dataHosts;
+	private volatile Map<String/*sliceName*/, PhysicalDBPool> dataHosts;
 	private volatile HostIndexConfig hostIndexConfig;
-	private volatile HostIndexConfig _hostIndexConfig;
 	private volatile CharsetConfig charsetConfig;
-	private volatile CharsetConfig _charsetConfig;
 	private volatile SequenceConfig sequenceConfig;
-	private volatile SequenceConfig _sequenceConfig;
 
 
 	private long reloadTime;
@@ -96,24 +88,43 @@ public class MycatConfig implements ConfigReLoader{
 		this.lock = new ReentrantLock();
 	}
 
-	public SystemConfig getSystem() {
-		return system;
-	}
-	public Map<String, UserConfig> getUsers() {
-		return users;
-	}
-	public Map<String, UserConfig> getBackupUsers() {
-		return _users;
-	}
-	public Map<String, SchemaConfig> getSchemas() {
-		return schemas;
-	}
-	public Map<String, SchemaConfig> getBackupSchemas() {
-		return _schemas;
-	}
-	public Map<String, PhysicalDBNode> getDataNodes() {
-		return dataNodes;
-	}
+	private volatile MycatClusterConfig _cluster;
+	private volatile QuarantineConfig _quarantine;
+	private volatile Map<String, UserConfig> _users;
+	private volatile Map<String, SchemaConfig> _schemas;
+	private volatile Map<String, PhysicalDBNode> _dataNodes;
+	private volatile Map<String, PhysicalDBPool> _dataHosts;
+	private volatile HostIndexConfig _hostIndexConfig;
+	private volatile CharsetConfig _charsetConfig;
+	private volatile SequenceConfig _sequenceConfig;
+
+
+
+	public SystemConfig getSystem() { return system; }
+	public Map<String, UserConfig> getUsers() { return users; }
+	public Map<String, UserConfig> getBackupUsers() { return _users; }
+	public Map<String, SchemaConfig> getSchemas() { return schemas; }
+	public Map<String, SchemaConfig> getBackupSchemas() { return _schemas; }
+	public Map<String, PhysicalDBNode> getDataNodes() { return dataNodes; }
+	public Map<String, PhysicalDBNode> getBackupDataNodes() { return _dataNodes; }
+	public Map<String, PhysicalDBPool> getDataHosts() { return dataHosts; }
+	public Map<String, PhysicalDBPool> getBackupDataHosts() { return _dataHosts; }
+	public MycatClusterConfig getCluster() { return cluster; }
+	public MycatClusterConfig getBackupCluster() { return _cluster; }
+	public QuarantineConfig getQuarantine() { return quarantine; }
+	public QuarantineConfig getBackupQuarantine() { return _quarantine; }
+	public ReentrantLock getLock() { return lock; }
+	public long getReloadTime() { return reloadTime; }
+	public long getRollbackTime() { return rollbackTime; }
+	public CharsetConfig getBackupCharsetConfig() { return _charsetConfig; }
+	public SequenceConfig getBackupSequenceConfig() { return _sequenceConfig; }
+	public HostIndexConfig getBackupHostIndexs() { return _hostIndexConfig; }
+	public CharsetConfig getCharsetConfig() { return charsetConfig; }
+	public void setCharsetConfig(CharsetConfig charsetConfig) { this.charsetConfig = charsetConfig; }
+	public SequenceConfig getSequenceConfig() { return sequenceConfig; }
+	public void setSequenceConfig(SequenceConfig sequenceConfig) { this.sequenceConfig = sequenceConfig; }
+
+
 	public String getHostIndex(String hostName, String index) {
 		if(this.hostIndexConfig.getProps().isEmpty()
 		   || !this.hostIndexConfig.getProps().containsKey(hostName)){
@@ -133,73 +144,6 @@ public class MycatConfig implements ConfigReLoader{
 			}
 		}
 		return schemas.toArray(new String[schemas.size()]);
-	}
-
-	public Map<String, PhysicalDBNode> getBackupDataNodes() {
-		return _dataNodes;
-	}
-
-	public Map<String, PhysicalDBPool> getDataHosts() {
-		return dataHosts;
-	}
-
-	public Map<String, PhysicalDBPool> getBackupDataHosts() {
-		return _dataHosts;
-	}
-
-	public MycatClusterConfig getCluster() {
-		return cluster;
-	}
-
-	public MycatClusterConfig getBackupCluster() {
-		return _cluster;
-	}
-
-	public QuarantineConfig getQuarantine() {
-		return quarantine;
-	}
-
-	public QuarantineConfig getBackupQuarantine() {
-		return _quarantine;
-	}
-
-	public ReentrantLock getLock() {
-		return lock;
-	}
-
-	public long getReloadTime() {
-		return reloadTime;
-	}
-
-	public long getRollbackTime() {
-		return rollbackTime;
-	}
-	public CharsetConfig getBackupCharsetConfig() {
-		return _charsetConfig;
-	}
-
-	public SequenceConfig getBackupSequenceConfig() {
-		return _sequenceConfig;
-	}
-
-	public HostIndexConfig getBackupHostIndexs() {
-		return _hostIndexConfig;
-	}
-
-	public CharsetConfig getCharsetConfig() {
-		return charsetConfig;
-	}
-
-	public void setCharsetConfig(CharsetConfig charsetConfig) {
-		this.charsetConfig = charsetConfig;
-	}
-
-	public SequenceConfig getSequenceConfig() {
-		return sequenceConfig;
-	}
-
-	public void setSequenceConfig(SequenceConfig sequenceConfig) {
-		this.sequenceConfig = sequenceConfig;
 	}
 
 	public boolean canRollback() {
@@ -379,78 +323,27 @@ public class MycatConfig implements ConfigReLoader{
 	}
 
 	@Override
-	public void reloadSchemaConfig(String schema) {
-		// TODO Auto-generated method stub
-
-	}
-
+	public void reloadSchemaConfig(String schema) {}
 	@Override
-	public void reloadSchemaConfigs() {
-		// TODO Auto-generated method stub
-
-	}
-
+	public void reloadSchemaConfigs() {}
 	@Override
-	public void reloadDataNodeConfigs() {
-		// TODO Auto-generated method stub
-
-	}
-
+	public void reloadDataNodeConfigs() {}
 	@Override
-	public void reloadDataHostConfigs() {
-		// TODO Auto-generated method stub
-
-	}
-
+	public void reloadDataHostConfigs() {}
 	@Override
-	public void reloadTableRuleConfigs() {
-		// TODO Auto-generated method stub
-
-	}
-
+	public void reloadTableRuleConfigs() {}
 	@Override
-	public void reloadSystemConfig() {
-		// TODO Auto-generated method stub
-
-	}
-
+	public void reloadSystemConfig() {}
 	@Override
-	public void reloadUserConfig(String user) {
-		// TODO Auto-generated method stub
-
-	}
-
+	public void reloadUserConfig(String user) {}
 	@Override
-	public void reloadUserConfigs() {
-		// TODO Auto-generated method stub
-
-	}
-
+	public void reloadUserConfigs() {}
 	@Override
-	public void reloadQuarantineConfigs() {
-		// TODO Auto-generated method stub
-
-	}
-
+	public void reloadQuarantineConfigs() {}
 	@Override
-	public void reloadClusterConfigs() {
-		// TODO Auto-generated method stub
-
-	}
-
+	public void reloadClusterConfigs(){}
 	@Override
-	public void reloadCharsetConfigs() {
-		// TODO Auto-generated method stub
-
-	}
-
+	public void reloadCharsetConfigs() {}
 	@Override
-	public void reloadHostIndexConfig() {
-		// TODO Auto-generated method stub
-
-	}
-
-
-
-
+	public void reloadHostIndexConfig() {}
 }

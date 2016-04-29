@@ -28,11 +28,7 @@ import io.mycat.util.TimeUtil;
 import java.util.LinkedList;
 import java.util.List;
 
-/**
- * 记录最近3个时段的平均响应时间，默认1，10，30分钟。
- * 
- * @author mycat
- */
+/* 记录最近3个时段的value的平均数，默认1，10，30分钟。 */
 public class HeartbeatRecorder {
 
     private static final int MAX_RECORD_SIZE = 256;
@@ -72,9 +68,7 @@ public class HeartbeatRecorder {
         calculate(time);
     }
 
-    /**
-     * 删除超过统计时间段的数据
-     */
+    /* 删除超过统计时间段的数据 */
     private void remove(long time) {
         final List<Record> records = this.records;
         while (records.size() > 0) {
@@ -87,9 +81,7 @@ public class HeartbeatRecorder {
         }
     }
 
-    /**
-     * 计算记录的统计数据
-     */
+    /* 计算记录的统计数据 */
     private void calculate(long time) {
         long v1 = 0L, v2 = 0L, v3 = 0L;
         int c1 = 0, c2 = 0, c3 = 0;
@@ -113,12 +105,10 @@ public class HeartbeatRecorder {
         avg3 = (v3 / c3);
     }
 
-    /**
-     * @author mycat
-     */
+    /* 记录一个时间点的数据 */
     private static class Record {
-        private long value;
-        private long time;
+        private long value; /* 数据值 */
+        private long time;  /* 时间 */
 
         Record(long value, long time) {
             this.value = value;

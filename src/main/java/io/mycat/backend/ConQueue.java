@@ -9,6 +9,7 @@ public class ConQueue {
 	private final ConcurrentLinkedQueue<BackendConnection> manCommitCons = new ConcurrentLinkedQueue<BackendConnection>();
 	private long executeCount;
 
+	/* 获得一个连接 */
 	public BackendConnection takeIdleCon(boolean autoCommit) {
 		ConcurrentLinkedQueue<BackendConnection> f1 = autoCommitCons;
 		ConcurrentLinkedQueue<BackendConnection> f2 = manCommitCons;
@@ -27,16 +28,12 @@ public class ConQueue {
 		} else {
 			return con;
 		}
-
 	}
 
-	public long getExecuteCount() {
-		return executeCount;
-	}
-
-	public void incExecuteCount() {
-		this.executeCount++;
-	}
+	public long getExecuteCount() { return executeCount; }
+	public void incExecuteCount() { this.executeCount++; }
+	public ConcurrentLinkedQueue<BackendConnection> getAutoCommitCons() { return autoCommitCons; }
+	public ConcurrentLinkedQueue<BackendConnection> getManCommitCons() { return manCommitCons; }
 
 	public void removeCon(BackendConnection con) {
 		if (!autoCommitCons.remove(con)) {
@@ -44,6 +41,7 @@ public class ConQueue {
 		}
 	}
 
+	/* 判断是不是同一个物理db的连接 */
 	public boolean isSameCon(BackendConnection con) {
 		if (autoCommitCons.contains(con)) {
 			return true;
@@ -53,30 +51,24 @@ public class ConQueue {
 		return false;
 	}
 
-	public ConcurrentLinkedQueue<BackendConnection> getAutoCommitCons() {
-		return autoCommitCons;
-	}
-
-	public ConcurrentLinkedQueue<BackendConnection> getManCommitCons() {
-		return manCommitCons;
-	}
-
+	/* 获得Count个连接 */
 	public ArrayList<BackendConnection> getIdleConsToClose(int count) {
-		ArrayList<BackendConnection> readyCloseCons = new ArrayList<BackendConnection>(
-				count);
+		ArrayList<BackendConnection> readyCloseCons = new ArrayList<BackendConnection>(count);
+
 		while (!manCommitCons.isEmpty() && readyCloseCons.size() < count) {
 			BackendConnection theCon = manCommitCons.poll();
 			if (theCon != null) {
 				readyCloseCons.add(theCon);
 			}
 		}
+
 		while (!autoCommitCons.isEmpty() && readyCloseCons.size() < count) {
 			BackendConnection theCon = autoCommitCons.poll();
 			if (theCon != null) {
 				readyCloseCons.add(theCon);
 			}
-
 		}
+
 		return readyCloseCons;
 	}
 

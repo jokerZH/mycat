@@ -1,19 +1,15 @@
 package io.mycat.route.function;
 
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
-
 
 /**
  * 路由分片函数抽象类
  * 为了实现一个默认的支持范围分片的函数 calcualteRange
  * 重写它以实现自己的范围路由规则
- * @author lxy
- *
  */
 public abstract class AbstractPartitionAlgorithm implements RuleAlgorithm {
-	private Map<String, Object> config = new LinkedHashMap<String, Object>();
+	private Map<String, Object> config = new LinkedHashMap<String, Object>();	/*  参数*/
 
 	@Override
 	public void init() { }
@@ -28,13 +24,7 @@ public abstract class AbstractPartitionAlgorithm implements RuleAlgorithm {
 		return new Integer[0];
 	}
 
-	/**
-	 * 对于存储数据按顺序存放的字段做范围路由，可以使用这个函数
-	 * @param algorithm
-	 * @param beginValue
-	 * @param endValue
-	 * @return
-	 */
+	/* 分表计算beging和end对应的下标,然后返回数组,包含两个下标中的所有数字, 对sharding算法有特殊要求 */
 	public static Integer[] calculateSequenceRange(AbstractPartitionAlgorithm algorithm, String beginValue, String endValue) {
 		Integer begin = 0, end = 0;
 		begin = algorithm.calculate(beginValue);
@@ -58,11 +48,6 @@ public abstract class AbstractPartitionAlgorithm implements RuleAlgorithm {
 		}
 	}
 
-	public Map<String, Object> getConfig() {
-		return config;
-	}
-	public void setConfig(Map<String, Object> config) {
-		this.config = config;
-	}
-
+	public Map<String, Object> getConfig() { return config; }
+	public void setConfig(Map<String, Object> config) { this.config = config; }
 }

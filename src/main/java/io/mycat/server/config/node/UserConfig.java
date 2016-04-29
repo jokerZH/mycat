@@ -25,47 +25,18 @@ package io.mycat.server.config.node;
 
 import java.util.Set;
 
-/**
- * @author mycat
- */
 public class UserConfig {
+    private String name;            /* 用户名 */
+    private String password;        /* 密码 */
+    private boolean readOnly=false; /* 是否只读 */
+    private Set<String> schemas;    /* 可以接触的dbName */
 
-    private String name;
-    private String password;
-    private boolean readOnly=false;
-    
-    public boolean isReadOnly() {
-		return readOnly;
-	}
-
-	public void setReadOnly(boolean readOnly) {
-		this.readOnly = readOnly;
-	}
-
-	private Set<String> schemas;
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    public Set<String> getSchemas() {
-        return schemas;
-    }
-
-    public void setSchemas(Set<String> schemas) {
-        this.schemas = schemas;
-    }
-
+    public boolean isReadOnly() { return readOnly; }
+	public void setReadOnly(boolean readOnly) { this.readOnly = readOnly; }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
+    public Set<String> getSchemas() { return schemas; }
+    public void setSchemas(Set<String> schemas) { this.schemas = schemas; }
 }

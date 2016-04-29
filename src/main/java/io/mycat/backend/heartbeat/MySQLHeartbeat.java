@@ -34,14 +34,10 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.concurrent.locks.ReentrantLock;
 
-/**
- * @author mycat
- */
+/* TODO mysql心跳 */
 public class MySQLHeartbeat extends DBHeartbeat {
-
+	public static final Logger LOGGER = LoggerFactory.getLogger(MySQLHeartbeat.class);
 	private static final int MAX_RETRY_COUNT = 5;
-	public static final Logger LOGGER = LoggerFactory
-			.getLogger(MySQLHeartbeat.class);
 
 	private final MySQLDataSource source;
 

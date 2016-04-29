@@ -37,45 +37,54 @@ import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.locks.ReentrantLock;
 
-/* 数据分片 */
+/* 数据分片 slice */
 public class PhysicalDBPool {
+    protected static final Logger LOGGER = LoggerFactory.getLogger(PhysicalDBPool.class);
+    private final Random random = new Random();
+    private final Random wnrandom = new Random();
+
+    /* balance */
     public static final int BALANCE_NONE = 0;
     public static final int BALANCE_ALL_BACK = 1;
     public static final int BALANCE_ALL = 2;
     public static final int BALANCE_ALL_READ = 3;
-    public static final int WRITE_ONLYONE_NODE = 0;
+
+    /* write */
+    public static final int WRITE_ONLYONE_NODE = 0;     /* 只写一个写mysql实例 */
     public static final int WRITE_RANDOM_NODE = 1;
     public static final int WRITE_ALL_NODE = 2;
+
+    /* other */
     public static final long LONG_TIME = 300000;
     public static final int WEIGHT = 0;
 
-    protected static final Logger LOGGER = LoggerFactory
-            .getLogger(PhysicalDBPool.class);
-    private final String hostName;
-    protected PhysicalDatasource[] writeSources;	/* 写节点 */
+    private final String hostName;                              /* silceName */
+    protected PhysicalDatasource[] writeSources;	            /* 写节点 */
     protected Map<Integer, PhysicalDatasource[]> readSources;	/* 读节点 */
-    protected volatile int activedIndex;	/* 读节点的便利 */
-    protected volatile boolean initSuccess;
+    protected volatile int activedIndex;	                    /* 当是WRITE_ONLYONE_NODE模式的时候,表示写哪个mysql实例 */
+    protected volatile boolean initSuccess;                     /* 是否初始化成功 */
     protected final ReentrantLock switchLock = new ReentrantLock();
-    private final Collection<PhysicalDatasource> allDs;	/* TODO 所有的 */
-    private final int banlance;
-    private final int writeType;
-    private final Random random = new Random();
-    private final Random wnrandom = new Random();
-    private String[] schemas;	/* TODO */
-    private final DataHostConfig dataHostConfig;
+    private final Collection<PhysicalDatasource> allDs;	        /* 所有的后段节点 */
+    private final int banlance;                         /* TOOD */
+    private final int writeType;                        /* TODO */
+    private String[] schemas;	                        /* 当前slice有哪些物理db */
 
-    public PhysicalDBPool(String name, DataHostConfig conf,
-                          PhysicalDatasource[] writeSources,
-                          Map<Integer, PhysicalDatasource[]> readSources, int balance,
-                          int writeType) {
+    private final DataHostConfig dataHostConfig;    /* config */
+
+    public PhysicalDBPool(
+            String name,
+            DataHostConfig conf,
+            PhysicalDatasource[] writeSources,
+            Map<Integer, PhysicalDatasource[]> readSources,
+            int balance,
+            int writeType
+    ) {
         this.hostName = name;
         this.dataHostConfig = conf;
         this.writeSources = writeSources;
         this.banlance = balance;
         this.writeType = writeType;
-        Iterator<Map.Entry<Integer, PhysicalDatasource[]>> entryItor = readSources
-                .entrySet().iterator();
+        Iterator<Map.Entry<Integer, PhysicalDatasource[]>> entryItor = readSources.entrySet().iterator();
         while (entryItor.hasNext()) {
             PhysicalDatasource[] values = entryItor.next().getValue();
             if (values.length == 0) {
@@ -84,23 +93,26 @@ public class PhysicalDBPool {
         }
         this.readSources = readSources;
         this.allDs = this.genAllDataSources();
-        LOGGER.info("total resouces of dataHost " + this.hostName + " is :"
-                + allDs.size());
+
+        LOGGER.info("total resouces of dataHost " + this.hostName + " is :" + allDs.size());
         setDataSourceProps();
     }
 
-    public int getWriteType() {
-        return writeType;
-    }
-    public int getBalance() {
-        return banlance;
-    }
+    public int getWriteType() { return writeType; }
+    public int getBalance() { return banlance; }
+    public String getHostName() { return hostName; }
+    public PhysicalDatasource[] getSources() { return writeSources; }
+    public int getActivedIndex() { return activedIndex; }
+    public boolean isInitSuccess() { return initSuccess; }
+
+
     private void setDataSourceProps() {
         for (PhysicalDatasource ds : this.allDs) {
             ds.setDbPool(this);
         }
     }
 
+    /* 返回连接所在的mysql实例 */
     public PhysicalDatasource findDatasouce(BackendConnection exitsCon) {
 
         for (PhysicalDatasource ds : this.allDs) {
@@ -115,19 +127,8 @@ public class PhysicalDBPool {
         return null;
     }
 
-    public String getHostName() {
-        return hostName;
-    }
 
-    /**
-     * all write datanodes
-     *
-     * @return
-     */
-    public PhysicalDatasource[] getSources() {
-        return writeSources;
-    }
-
+    /* 返回接下来会用的写mysql实例 */
     public PhysicalDatasource getSource() {
         switch (writeType) {
             case WRITE_ONLYONE_NODE: {
@@ -138,9 +139,8 @@ public class PhysicalDBPool {
                 int index = Math.abs(wnrandom.nextInt()) % writeSources.length;
                 PhysicalDatasource result = writeSources[index];
                 if (!this.isAlive(result)) {
-                    // find all live nodes
-                    ArrayList<Integer> alives = new ArrayList<Integer>(
-                            writeSources.length - 1);
+                    // mysql实例不是ok的
+                    ArrayList<Integer> alives = new ArrayList<Integer>(writeSources.length - 1);
                     for (int i = 0; i < writeSources.length; i++) {
                         if (i != index) {
                             if (this.isAlive(writeSources[i])) {
@@ -151,34 +151,22 @@ public class PhysicalDBPool {
                     if (alives.isEmpty()) {
                         result = writeSources[0];
                     } else {
-                        // random select one
                         index = Math.abs(wnrandom.nextInt()) % alives.size();
                         result = writeSources[alives.get(index)];
-
                     }
                 }
                 if (LOGGER.isDebugEnabled()) {
-                    LOGGER.debug("select write source " + result.getName()
-                            + " for dataHost:" + this.getHostName());
+                    LOGGER.debug("select write source " + result.getName() + " for dataHost:" + this.getHostName());
                 }
                 return result;
             }
             default: {
-                throw new java.lang.IllegalArgumentException("writeType is "
-                        + writeType + " ,so can't return one write datasource ");
+                throw new java.lang.IllegalArgumentException("writeType is " + writeType + " ,so can't return one write datasource ");
             }
         }
-
     }
 
-    public int getActivedIndex() {
-        return activedIndex;
-    }
-
-    public boolean isInitSuccess() {
-        return initSuccess;
-    }
-
+    /* 是否存在i下一个 写的mysql实例 */
     public int next(int i) {
         if (checkIndex(i)) {
             return (++i == writeSources.length) ? 0 : i;
@@ -187,9 +175,7 @@ public class PhysicalDBPool {
         }
     }
 
-    /**
-     * 鍒囨崲鏁版嵁婧�
-     */
+    /* */
     public boolean switchSource(int newIndex, boolean isAlarm, String reason) {
         if (this.writeType != PhysicalDBPool.WRITE_ONLYONE_NODE
                 || !checkIndex(newIndex)) {
@@ -369,6 +355,7 @@ public class PhysicalDBPool {
 
     }
 
+    /* 归总所有后端节点 */
     public Collection<PhysicalDatasource> genAllDataSources() {
         LinkedList<PhysicalDatasource> allSources = new LinkedList<PhysicalDatasource>();
         for (PhysicalDatasource ds : writeSources) {
@@ -490,6 +477,7 @@ public class PhysicalDBPool {
 		}
 	}
 
+    /* 判断mysql实例是否是活的 */
     private boolean isAlive(PhysicalDatasource theSource) {
         return (theSource.getHeartbeat().getStatus() == DBHeartbeat.OK_STATUS);
     }
@@ -591,9 +579,7 @@ public class PhysicalDBPool {
         return okSources;
     }
 
-    public String[] getSchemas() {
-        return schemas;
-    }
+    public String[] getSchemas() { return schemas; }
 
     public void setSchemas(String[] mySchemas) {
         this.schemas = mySchemas;

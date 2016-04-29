@@ -23,25 +23,13 @@
  */
 package io.mycat.route.function;
 
-/**
- * @author mycat
- */
 public interface RuleAlgorithm {
 
-	/**
-	 * init
-	 * 
-	 * @param
-	 */
 	void init();
 
-	/**
-	 * 
-	 * return sharding nodes's id
-	 * columnValue is column's value
-	 * @return never null
-	 */
+	/* 计算单个value 返回对应的下标 */
 	Integer calculate(String columnValue);
-	
+
+	/* 计算value的范围,返回多个下标 */
 	Integer[] calculateRange(String beginValue,String endValue);
 }

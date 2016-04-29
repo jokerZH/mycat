@@ -23,21 +23,14 @@
  */
 package io.mycat.server.config.node;
 
-/**
- * 用于描述一个数据节点的配置
- *
- * @author mycat
- */
+/* 用于描述一个数据节点的配置 TODO */
 public final class DataNodeConfig {
 
-    private String name;
-    private String database;
-    private String dataHost;
+    private String name;    /* TODO */
+    private String database;/* TODO */
+    private String dataHost;/* TODO */
 
-    public DataNodeConfig() {
-        super();
-    }
-
+    public DataNodeConfig() { super(); }
     public DataNodeConfig(String name, String database, String dataHost) {
         super();
         this.name = name;
@@ -45,36 +38,13 @@ public final class DataNodeConfig {
         this.dataHost = dataHost;
     }
 
-    public String getName() {
-        return name;
-    }
-
-    public String getDatabase() {
-        return database;
-    }
-
-    public String getDataHost() {
-        return dataHost;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public void setDatabase(String database) {
-        this.database = database;
-    }
-
-    public void setDataHost(String dataHost) {
-        this.dataHost = dataHost;
-    }
+    public String getName() { return name; }
+    public String getDatabase() { return database; }
+    public String getDataHost() { return dataHost; }
+    public void setName(String name) { this.name = name; }
+    public void setDatabase(String database) { this.database = database; }
+    public void setDataHost(String dataHost) { this.dataHost = dataHost; }
 
     @Override
-    public String toString() {
-        return "DataNodeConfig{" +
-                "name='" + name + '\'' +
-                ", database='" + database + '\'' +
-                ", dataHost='" + dataHost + '\'' +
-                '}';
-    }
+    public String toString() { return "DataNodeConfig{" + "name='" + name + '\'' + ", database='" + database + '\'' + ", dataHost='" + dataHost + '\'' + '}'; }
 }
