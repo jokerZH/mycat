@@ -31,32 +31,25 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- * wuzh
- * 
- * @author mycat
- * 
- */
+/* 新建mysql的连接池中用到的handler */
 public class GetConnectionHandler implements ResponseHandler {
+	private static final Logger logger = LoggerFactory.getLogger(GetConnectionHandler.class);
+
 	private final CopyOnWriteArrayList<BackendConnection> successCons;
-	private static final Logger logger = LoggerFactory
-			.getLogger(GetConnectionHandler.class);
 	private final AtomicInteger finishedCount = new AtomicInteger(0);
 	private final int total;
 
-	public GetConnectionHandler(
-			CopyOnWriteArrayList<BackendConnection> connsToStore,
-			int totalNumber) {
+	public GetConnectionHandler(CopyOnWriteArrayList<BackendConnection> connsToStore, int totalNumber) {
 		super();
 		this.successCons = connsToStore;
 		this.total = totalNumber;
 	}
 
 	public String getStatusInfo() {
-		return "finished " + finishedCount.get() + " success "
-				+ successCons.size() + " target count:" + this.total;
+		return "finished " + finishedCount.get() + " success " + successCons.size() + " target count:" + this.total;
 	}
 
+	/* 是否创建足够的连接了 */
 	public boolean finished() {
 		return finishedCount.get() >= total;
 	}
@@ -85,28 +78,14 @@ public class GetConnectionHandler implements ResponseHandler {
 	@Override
 	public void okResponse(byte[] ok, BackendConnection conn) {
 		logger.info("received ok resp: " + conn + " " + new String(ok));
-
 	}
 
 	@Override
-	public void fieldEofResponse(byte[] header, List<byte[]> fields,
-			byte[] eof, BackendConnection conn) {
-
-	}
-
+	public void fieldEofResponse(byte[] header, List<byte[]> fields, byte[] eof, BackendConnection conn) {}
 	@Override
-	public void rowResponse(byte[] row, BackendConnection conn) {
-
-	}
-
+	public void rowResponse(byte[] row, BackendConnection conn) {}
 	@Override
-	public void rowEofResponse(byte[] eof, BackendConnection conn) {
-
-	}
-
+	public void rowEofResponse(byte[] eof, BackendConnection conn) {}
 	@Override
-	public void connectionClose(BackendConnection conn, String reason) {
-
-	}
-
+	public void connectionClose(BackendConnection conn, String reason) {}
 }

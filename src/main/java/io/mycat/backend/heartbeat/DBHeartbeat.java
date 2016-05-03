@@ -26,7 +26,7 @@ package io.mycat.backend.heartbeat;
 import io.mycat.backend.HeartbeatRecorder;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-
+/* TODO 心跳相关 */
 public abstract class DBHeartbeat {
 	public static final int DB_SYN_ERROR = -1;
 	public static final int DB_SYN_NORMAL = 1;
@@ -44,13 +44,13 @@ public abstract class DBHeartbeat {
 	protected int 	heartbeatRetry = DEFAULT_HEARTBEAT_RETRY; 		/* 检查连接发生异常到切换，重试次数 */
 	protected String heartbeatSQL;									/* 静态心跳语句 */
 
-	protected final AtomicBoolean isStop = new AtomicBoolean(true);			/* TODO */
+	protected final AtomicBoolean isStop = new AtomicBoolean(true);			/* 是否停止心跳检测 */
 	protected final AtomicBoolean isChecking = new AtomicBoolean(false); 	/* TODO */
-	protected int errorCount;			/* TODO */
-	protected volatile int status;		/* 当前的状态 */
+	protected int errorCount;												/* TODO 错误的计数器 */
+	protected volatile int status;											/* 当前的状态 */
 	protected final HeartbeatRecorder recorder = new HeartbeatRecorder(); 	/* TODO */
 
-	private volatile Integer slaveBehindMaster;
+	private volatile Integer slaveBehindMaster;			/* TODO 一个master有多少slave */
 	private volatile int dbSynStatus = DB_SYN_NORMAL;
 
 	public Integer getSlaveBehindMaster() { return slaveBehindMaster; }

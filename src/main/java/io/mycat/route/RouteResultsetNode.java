@@ -25,119 +25,61 @@ package io.mycat.route;
 
 import io.mycat.server.parser.ServerParse;
 import io.mycat.sqlengine.mpp.LoadData;
-
 import java.io.Serializable;
 
-/**
- * @author mycat
- */
 public final class RouteResultsetNode implements Serializable , Comparable<RouteResultsetNode> {
-	/**
-	 *
-	 */
 	private static final long serialVersionUID = 1L;
-	private final String name; // 数据节点名称
-	private String statement; // 执行的语句
-	private final String srcStatement;
-	private final int sqlType;
-	private volatile boolean canRunInReadDB;
-	private final boolean hasBlanceFlag;
 
-	private int limitStart;
-	private int limitSize;
-	private int totalNodeSize =0; //方便后续jdbc批量获取扩展
+	private final String name; 				// sliceName
+	private String statement; 				// 后端执行的语句
+	private final String srcStatement;		// 客户端传入的sql语句
+	private final int sqlType;				// sql类型
+	private volatile boolean canRunInReadDB;// 是否可以在read节点上执行,根据sql是否是读请求决定
+	private final boolean hasBlanceFlag;	// 如果sql语句有/*balance*/hint就为true
 
-	private LoadData loadData;
+	private int limitStart;			// TODO
+	private int limitSize;			// TODO
+	private int totalNodeSize =0; 	//方便后续jdbc批量获取扩展
+
+	private LoadData loadData;		// TODO
 
 	public RouteResultsetNode(String name, int sqlType, String srcStatement) {
 		this.name = name;
-		limitStart=0;
+		this.limitStart=0;
 		this.limitSize = -1;
 		this.sqlType = sqlType;
 		this.srcStatement = srcStatement;
 		this.statement = srcStatement;
 		canRunInReadDB = (sqlType == ServerParse.SELECT || sqlType == ServerParse.SHOW);
-		hasBlanceFlag = (statement != null)
-				&& statement.startsWith("/*balance*/");
+		hasBlanceFlag = (statement != null) && statement.startsWith("/*balance*/");
 	}
 
-	public void setStatement(String statement) {
-		this.statement = statement;
-	}
-
-	public void setCanRunInReadDB(boolean canRunInReadDB) {
-		this.canRunInReadDB = canRunInReadDB;
-	}
-
-	public boolean getCanRunInReadDB() {
-		return this.canRunInReadDB;
-	}
-
-	public void resetStatement() {
-		this.statement = srcStatement;
-	}
-
+	/* 判断当前请求,是否可以在slave上运行 */
 	public boolean canRunnINReadDB(boolean autocommit) {
 		return canRunInReadDB && autocommit && !hasBlanceFlag
 			|| canRunInReadDB && !autocommit && hasBlanceFlag;
 	}
 
-	public String getName() {
-		return name;
-	}
 
-	public int getSqlType() {
-		return sqlType;
-	}
-
-	public String getStatement() {
-		return statement;
-	}
-
-	public int getLimitStart()
-	{
-		return limitStart;
-	}
-
-	public void setLimitStart(int limitStart)
-	{
-		this.limitStart = limitStart;
-	}
-
-	public int getLimitSize()
-	{
-		return limitSize;
-	}
-
-	public void setLimitSize(int limitSize)
-	{
-		this.limitSize = limitSize;
-	}
-
-	public int getTotalNodeSize()
-	{
-		return totalNodeSize;
-	}
-
-	public void setTotalNodeSize(int totalNodeSize)
-	{
-		this.totalNodeSize = totalNodeSize;
-	}
-
-	public LoadData getLoadData()
-	{
-		return loadData;
-	}
-
-	public void setLoadData(LoadData loadData)
-	{
-		this.loadData = loadData;
-	}
+	public void setStatement(String statement) { this.statement = statement; }
+	public void setCanRunInReadDB(boolean canRunInReadDB) { this.canRunInReadDB = canRunInReadDB; }
+	public boolean getCanRunInReadDB() { return this.canRunInReadDB; }
+	public void resetStatement() { this.statement = srcStatement; }
+	public String getName() { return name; }
+	public int getSqlType() { return sqlType; }
+	public String getStatement() { return statement; }
+	public int getLimitStart() { return limitStart; }
+	public void setLimitStart(int limitStart) { this.limitStart = limitStart; }
+	public int getLimitSize() { return limitSize; }
+	public void setLimitSize(int limitSize) { this.limitSize = limitSize; }
+	public int getTotalNodeSize() { return totalNodeSize; }
+	public void setTotalNodeSize(int totalNodeSize) { this.totalNodeSize = totalNodeSize; }
+	public LoadData getLoadData() { return loadData; }
+	public void setLoadData(LoadData loadData) { this.loadData = loadData; }
+	public boolean isModifySQL() { return !canRunInReadDB; }
 
 	@Override
-	public int hashCode() {
-		return name.hashCode();
-	}
+	public int hashCode() { return name.hashCode(); }
 
 	@Override
 	public boolean equals(Object obj) {
@@ -152,14 +94,6 @@ public final class RouteResultsetNode implements Serializable , Comparable<Route
 		return false;
 	}
 
-	@Override
-	public String toString() {
-		StringBuilder s = new StringBuilder();
-		s.append(name);
-		s.append('{').append(statement).append('}');
-		return s.toString();
-	}
-
 	private static boolean equals(String str1, String str2) {
 		if (str1 == null) {
 			return str2 == null;
@@ -167,8 +101,11 @@ public final class RouteResultsetNode implements Serializable , Comparable<Route
 		return str1.equals(str2);
 	}
 
-	public boolean isModifySQL() {
-		return !canRunInReadDB;
+	@Override
+	public String toString() {
+		StringBuilder s = new StringBuilder();
+		s.append(name).append('{').append(statement).append('}');
+		return s.toString();
 	}
 
 	@Override

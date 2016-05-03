@@ -47,12 +47,14 @@ public class MycatConfig implements ConfigReLoader{
 
 	/* system */
 	private volatile SystemConfig system;
+
 	/* cluster */
 	private volatile MycatClusterConfig cluster;
-	private volatile QuarantineConfig quarantine;
+	private volatile QuarantineConfig quarantine;	/* TODO 集群隔离相关 */
+
 	/* mycat */
-	private volatile Map<String/*userName*/, UserConfig> users;		/* 用户信息 */
-	private volatile Map<String/*ldbName*/, SchemaConfig> schemas;	/* 逻辑db信息 */
+	private volatile Map<String/*userName*/, UserConfig> users;				/* 用户信息 */
+	private volatile Map<String/*ldbName*/, SchemaConfig> schemas;			/* 逻辑db信息 */
 	private volatile Map<String, PhysicalDBNode> dataNodes;
 	private volatile Map<String/*sliceName*/, PhysicalDBPool> dataHosts;
 	private volatile HostIndexConfig hostIndexConfig;

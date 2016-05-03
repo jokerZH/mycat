@@ -23,7 +23,7 @@
  */
 package io.mycat.server.config.node;
 
-/* 对应一个后端DB */
+/* 对应一个后端DB,只是到了mysql实例的层次,没有schema信息,schema在DataNodeConfig中  */
 public class DBHostConfig {
     private String hostName;    /* 主机名  */
     private String ip;          /* ip     */
@@ -34,7 +34,7 @@ public class DBHostConfig {
     private long idleTimeout = SystemConfig.DEFAULT_IDLE_TIMEOUT; /* 连接池中连接空闲超时时间 */
     private int maxCon;         /* 最大连接数目 */
     private int minCon;         /* 最小连接数目 */
-    private String dbType;      /* TODO db类型  mysql redis等的 */
+    private String dbType;      /* db类型  mysql redis等的 */
     private String filters = "mergeStat";   /* TODO */
     private long logTime = 300000;          /* TODO */
     private int weight;			/* 权值 */

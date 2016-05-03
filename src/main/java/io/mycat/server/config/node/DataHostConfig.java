@@ -29,30 +29,30 @@ import java.util.regex.Pattern;
 
 import io.mycat.backend.PhysicalDBPool;
 
-/* Datahost is a group of DB servers which is synchronized with each other */
-/* 类似于vdds中的slice概念 */
+/* 一堆有主从关系的mysql实例 */
 public class DataHostConfig {
-    public static final int NOT_SWITCH_DS = -1;
+    public static final int NOT_SWITCH_DS = -1;         /* 不可以切换写mysql实例 */
     public static final int DEFAULT_SWITCH_DS = 1;
     public static final int SYN_STATUS_SWITCH_DS = 2;
 
     private static final Pattern pattern = Pattern.compile("\\s*show\\s+slave\\s+status\\s*", Pattern.CASE_INSENSITIVE);
-    private String dbType;      /* TODO */
-    private String dbDriver;    /* TODO */
-    private int switchType;     /* TODO */
+
+    private String dbType;                              /* TODO */
+    private String dbDriver;                            /* TODO */
+    private int switchType;                             /* 写mysql实例的切换配置 */
     private DBHostConfig[] writeHosts;                  /* 所有写db */
     private Map<Integer, DBHostConfig[]> readHosts;     /* 所有读db, 感觉数组的方式已经将所有slice包含进去了 */
 
-    private String name;        /* 类似sliceName */
+    private String name;                                /* 类似sliceName */
 
     private int maxCon = SystemConfig.DEFAULT_POOL_SIZE;    /* 连接池最多连接数目 */
     private int minCon = 10;                                /* 连接池最小连接数目 */
     private int balance = PhysicalDBPool.BALANCE_NONE;      /* TODO */
-    private int writeType = PhysicalDBPool.WRITE_ONLYONE_NODE;/* TODO */
+    private int writeType = PhysicalDBPool.WRITE_ONLYONE_NODE;/* 写的模式,如果只能写一个写节点 */
     private String heartbeatSQL;                            /* 心跳sql */
     private boolean isShowSlaveSql = false;                 /* TODO */
     private String connectionInitSql;                       /* 连接建立之后执行的sql语句 */
-    private int slaveThreshold = -1;                        /* TODO */
+    private int slaveThreshold = -1;                        /* TODO 最多多少slave能用于响应读请求 */
     private String filters = "mergeStat";                   /* TODO */
     private long logTime = 300000;                          /* TODO */
     private boolean tempReadHostAvailable = false;          /* 如果写服务挂掉, 临时读服务是否继续可用 */

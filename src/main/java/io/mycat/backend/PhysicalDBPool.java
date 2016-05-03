@@ -37,11 +37,12 @@ import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.locks.ReentrantLock;
 
-/* 数据分片 slice */
+/* 对应具有主从关系的多个mysql实例的连接池,所以多个slice可能共用一个POOL */
 public class PhysicalDBPool {
     protected static final Logger LOGGER = LoggerFactory.getLogger(PhysicalDBPool.class);
     private final Random random = new Random();
     private final Random wnrandom = new Random();
+    protected final ReentrantLock switchLock = new ReentrantLock();
 
     /* balance */
     public static final int BALANCE_NONE = 0;
@@ -51,23 +52,22 @@ public class PhysicalDBPool {
 
     /* write */
     public static final int WRITE_ONLYONE_NODE = 0;     /* 只写一个写mysql实例 */
-    public static final int WRITE_RANDOM_NODE = 1;
+    public static final int WRITE_RANDOM_NODE = 1;      /* 所以选择一个mysql写 */
     public static final int WRITE_ALL_NODE = 2;
 
     /* other */
-    public static final long LONG_TIME = 300000;
+    public static final long LONG_TIME = 300000;    /* 5min */
     public static final int WEIGHT = 0;
 
-    private final String hostName;                              /* silceName */
+    private final String hostName;                              /* 这个mysql实例集合的名字 */
     protected PhysicalDatasource[] writeSources;	            /* 写节点 */
     protected Map<Integer, PhysicalDatasource[]> readSources;	/* 读节点 */
     protected volatile int activedIndex;	                    /* 当是WRITE_ONLYONE_NODE模式的时候,表示写哪个mysql实例 */
     protected volatile boolean initSuccess;                     /* 是否初始化成功 */
-    protected final ReentrantLock switchLock = new ReentrantLock();
     private final Collection<PhysicalDatasource> allDs;	        /* 所有的后段节点 */
-    private final int banlance;                         /* TOOD */
-    private final int writeType;                        /* TODO */
-    private String[] schemas;	                        /* 当前slice有哪些物理db */
+    private final int banlance;                         /* banlance的模式 */
+    private final int writeType;                        /* 选择写实例的模式 :*/
+    private String[] schemas;	                        /* 当前mysql实例上有那些物理dbName */
 
     private final DataHostConfig dataHostConfig;    /* config */
 
@@ -97,6 +97,9 @@ public class PhysicalDBPool {
         LOGGER.info("total resouces of dataHost " + this.hostName + " is :" + allDs.size());
         setDataSourceProps();
     }
+    private void setDataSourceProps() {
+        for (PhysicalDatasource ds : this.allDs) { ds.setDbPool(this); }
+    }
 
     public int getWriteType() { return writeType; }
     public int getBalance() { return banlance; }
@@ -105,12 +108,6 @@ public class PhysicalDBPool {
     public int getActivedIndex() { return activedIndex; }
     public boolean isInitSuccess() { return initSuccess; }
 
-
-    private void setDataSourceProps() {
-        for (PhysicalDatasource ds : this.allDs) {
-            ds.setDbPool(this);
-        }
-    }
 
     /* 返回连接所在的mysql实例 */
     public PhysicalDatasource findDatasouce(BackendConnection exitsCon) {
@@ -122,8 +119,7 @@ public class PhysicalDBPool {
                 }
             }
         }
-        LOGGER.warn("can't find connection in pool " + this.hostName + " con:"
-                + exitsCon);
+        LOGGER.warn("can't find connection in pool " + this.hostName + " con:" + exitsCon);
         return null;
     }
 
@@ -139,7 +135,7 @@ public class PhysicalDBPool {
                 int index = Math.abs(wnrandom.nextInt()) % writeSources.length;
                 PhysicalDatasource result = writeSources[index];
                 if (!this.isAlive(result)) {
-                    // mysql实例不是ok的
+                    // mysql实例不是ok的,则在健康的mysql中选择一个
                     ArrayList<Integer> alives = new ArrayList<Integer>(writeSources.length - 1);
                     for (int i = 0; i < writeSources.length; i++) {
                         if (i != index) {
@@ -175,12 +171,13 @@ public class PhysicalDBPool {
         }
     }
 
-    /* */
+    /* 将写mysql给成newIndex */
     public boolean switchSource(int newIndex, boolean isAlarm, String reason) {
-        if (this.writeType != PhysicalDBPool.WRITE_ONLYONE_NODE
-                || !checkIndex(newIndex)) {
+        /* 只适用于WRITE_ONLYONE_NODE模式 */
+        if (this.writeType != PhysicalDBPool.WRITE_ONLYONE_NODE || !checkIndex(newIndex)) {
             return false;
         }
+
         final ReentrantLock lock = this.switchLock;
         lock.lock();
         try {
@@ -199,17 +196,17 @@ public class PhysicalDBPool {
         } finally {
             lock.unlock();
         }
+
         return false;
     }
 
-    private String switchMessage(int current, int newIndex, boolean alarm,
-                                 String reason) {
+    /* 构建写实例切换时的日志信息 */
+    private String switchMessage(int current, int newIndex, boolean alarm, String reason) {
         StringBuilder s = new StringBuilder();
         if (alarm) {
             s.append(Alarms.DATANODE_SWITCH);
         }
-        s.append("[Host=").append(hostName).append(",result=[").append(current)
-                .append("->");
+        s.append("[Host=").append(hostName).append(",result=[").append(current).append("->");
         s.append(newIndex).append("],reason=").append(reason).append(']');
         return s.toString();
     }
@@ -218,16 +215,18 @@ public class PhysicalDBPool {
         return i < writeSources.length ? i : (i - writeSources.length);
     }
 
+    /* 从index开始,尝试初始化一个mysql实例的连接池 */
     public void init(int index) {
         if (!checkIndex(index)) {
             index = 0;
         }
+
         int active = -1;
         for (int i = 0; i < writeSources.length; i++) {
             int j = loop(i + index);
             if (initSource(j, writeSources[j])) {
-                //不切换-1时，如果主写挂了   不允许切换过去
-                if(dataHostConfig.getSwitchType()==DataHostConfig.NOT_SWITCH_DS&&j>0)
+                //不切换-1时
+                if(dataHostConfig.getSwitchType()==DataHostConfig.NOT_SWITCH_DS && j>0)
                 {
                     break;
                 }
@@ -251,53 +250,45 @@ public class PhysicalDBPool {
         }
     }
 
+    /* 判断i是否在写list的范围内 */
     private boolean checkIndex(int i) {
         return i >= 0 && i < writeSources.length;
     }
 
     private String getMessage(int index, String info) {
-        return new StringBuilder().append(hostName).append(" index:")
-                .append(index).append(info).toString();
+        return new StringBuilder().append(hostName).append(" index:").append(index).append(info).toString();
     }
 
+    /* 初始化某一个mysql实例的连接池, 同步等待的方式 */
     private boolean initSource(int index, PhysicalDatasource ds) {
         int initSize = ds.getConfig().getMinCon();
-        LOGGER.info("init backend myqsl source ,create connections total "
-                + initSize + " for " + ds.getName() + " index :" + index);
+        LOGGER.info("init backend myqsl source ,create connections total " + initSize + " for " + ds.getName() + " index :" + index);
+
         CopyOnWriteArrayList<BackendConnection> list = new CopyOnWriteArrayList<BackendConnection>();
-        GetConnectionHandler getConHandler = new GetConnectionHandler(list,
-                initSize);
-        // long start=System.currentTimeMillis();
-        // long timeOut=start+5000*1000L;
+        GetConnectionHandler getConHandler = new GetConnectionHandler(list, initSize);
 
         for (int i = 0; i < initSize; i++) {
             try {
-
-                ds.getConnection(this.schemas[i % schemas.length], true,
-                        getConHandler, null);
+                ds.getConnection(this.schemas[i % schemas.length], true, getConHandler, null);
             } catch (Exception e) {
                 LOGGER.warn(getMessage(index, " init connection error."), e);
             }
         }
-        long timeOut = System.currentTimeMillis() + 60 * 1000;
 
         // waiting for finish
-        while (!getConHandler.finished()
-                && (System.currentTimeMillis() < timeOut)) {
+        long timeOut = System.currentTimeMillis() + 60 * 1000;  //等待60s
+        while (!getConHandler.finished() && (System.currentTimeMillis() < timeOut)) {
             try {
                 Thread.sleep(100);
-
             } catch (InterruptedException e) {
                 LOGGER.error("initError", e);
             }
         }
         LOGGER.info("init result :" + getConHandler.getStatusInfo());
-//        for (BackendConnection c : list) {
-//            c.release();
-//        }
         return !list.isEmpty();
     }
 
+    /* 对所有后段连接,做一次心跳 */
     public void doHeartbeat() {
         if (writeSources == null || writeSources.length == 0) {
             return;
@@ -321,13 +312,17 @@ public class PhysicalDBPool {
         for (PhysicalDatasource ds : allDs) {
             // only readnode or all write node or writetype=WRITE_ONLYONE_NODE
             // and current write node will check
-            if (ds != null
+            if (
+                    ds != null
                     && (ds.getHeartbeat().getStatus() == DBHeartbeat.OK_STATUS)
-                    && (ds.isReadNode()
-                    || (this.writeType != WRITE_ONLYONE_NODE) || (this.writeType == WRITE_ONLYONE_NODE && ds == this
-                    .getSource()))) {
-                ds.heatBeatCheck(ds.getConfig().getIdleTimeout(),
-                        ildCheckPeriod);
+                    && (
+                            ds.isReadNode()
+                            || (this.writeType != WRITE_ONLYONE_NODE)
+                            || (this.writeType == WRITE_ONLYONE_NODE && ds == this.getSource())
+                        )
+               )
+            {
+                ds.heatBeatCheck(ds.getConfig().getIdleTimeout(), ildCheckPeriod);
             }
         }
     }
@@ -347,12 +342,10 @@ public class PhysicalDBPool {
     public void clearDataSources(String reason) {
         LOGGER.info("clear datasours of pool " + this.hostName);
         for (PhysicalDatasource source : this.allDs) {
-            LOGGER.info("clear datasoure of pool  " + this.hostName + " ds:"
-                    + source.getConfig());
+            LOGGER.info("clear datasoure of pool  " + this.hostName + " ds:" + source.getConfig());
             source.clearCons(reason);
             source.stopHeartbeat();
         }
-
     }
 
     /* 归总所有后端节点 */
@@ -377,22 +370,13 @@ public class PhysicalDBPool {
         return this.allDs;
     }
 
-    /**
-     * return connection for read balance
-     *
-     * @param handler
-     * @param attachment
-     * @param database
-     * @throws Exception
-     */
-    public void getRWBanlanceCon(String schema, boolean autocommit,
-                                 ResponseHandler handler, Object attachment, String database)
-            throws Exception {
+    /* 获得读连接 */
+    public void getRWBanlanceCon(String schema, boolean autocommit, ResponseHandler handler, Object attachment, String database) throws Exception {
         PhysicalDatasource theNode = null;
         ArrayList<PhysicalDatasource> okSources = null;
         switch (banlance) {
-            case BALANCE_ALL_BACK: {// all read nodes and the standard by masters
-
+            case BALANCE_ALL_BACK: {
+                // all read nodes and the standard by masters ,除了当前写的master
                 okSources = getAllActiveRWSources(true, false, checkSlaveSynStatus());
                 if (okSources.isEmpty()) {
                     theNode = this.getSource();
@@ -417,9 +401,9 @@ public class PhysicalDBPool {
                 theNode = this.getSource();
         }
         if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("select read source " + theNode.getName()
-                    + " for dataHost:" + this.getHostName());
+            LOGGER.debug("select read source " + theNode.getName() + " for dataHost:" + this.getHostName());
         }
+
         theNode.getConnection(schema, autocommit, handler, attachment);
     }
 
@@ -429,8 +413,7 @@ public class PhysicalDBPool {
     }
 
     /**
-	 * TODO: modify by zhuam
-	 * 
+     * TODO
 	 * 随机选择，按权重设置随机概率。
      * 在一个截面上碰撞的概率高，但调用量越大分布越均匀，而且按概率使用权重后也比较均匀，有利于动态调整提供者权重。
 	 * @param okSources
@@ -482,36 +465,34 @@ public class PhysicalDBPool {
         return (theSource.getHeartbeat().getStatus() == DBHeartbeat.OK_STATUS);
     }
 
+    /* 判断mysql实例是否可以用于读 */
     private boolean canSelectAsReadNode(PhysicalDatasource theSource) {
 
-        if(theSource.getHeartbeat().getSlaveBehindMaster()==null
-                ||theSource.getHeartbeat().getDbSynStatus()==DBHeartbeat.DB_SYN_ERROR){
+        if(theSource.getHeartbeat().getSlaveBehindMaster()==null ||theSource.getHeartbeat().getDbSynStatus()==DBHeartbeat.DB_SYN_ERROR){
+            // 如果是master或者同步有问题
             return false;
         }
-        return (theSource.getHeartbeat().getDbSynStatus() == DBHeartbeat.DB_SYN_NORMAL)
-                && (theSource.getHeartbeat().getSlaveBehindMaster() < this.dataHostConfig
-                .getSlaveThreshold());
 
+        return (theSource.getHeartbeat().getDbSynStatus() == DBHeartbeat.DB_SYN_NORMAL) &&
+               (theSource.getHeartbeat().getSlaveBehindMaster() < this.dataHostConfig.getSlaveThreshold());
     }
 
     /**
-     * return all backup write sources
-     *
-     * @param includeWriteNode if include write nodes
-     * @param includeCurWriteNode if include current active write node. invalid when <code>includeWriteNode<code> is false
-     * @param filterWithSlaveThreshold
+     * 返回mysql实例
+     * @param includeWriteNode      是否包含写连接
+     * @param includeCurWriteNode   是否包含当前在用的写连接
+     * @param filterWithSlaveThreshold  是否根据slave threshold过滤
      *
      * @return
      */
-    private ArrayList<PhysicalDatasource> getAllActiveRWSources(
-    		boolean includeWriteNode,
-            boolean includeCurWriteNode, boolean filterWithSlaveThreshold) {
+    private ArrayList<PhysicalDatasource> getAllActiveRWSources(boolean includeWriteNode, boolean includeCurWriteNode, boolean filterWithSlaveThreshold) {
         int curActive = activedIndex;
-        ArrayList<PhysicalDatasource> okSources = new ArrayList<PhysicalDatasource>(
-                this.allDs.size());
+        ArrayList<PhysicalDatasource> okSources = new ArrayList<PhysicalDatasource>(this.allDs.size());
+
         for (int i = 0; i < this.writeSources.length; i++) {
             PhysicalDatasource theSource = writeSources[i];
-            if (isAlive(theSource)) {// write node is active
+            if (isAlive(theSource)) {
+                // write node is active
                 if (includeWriteNode) {
 	            	if (i == curActive && includeCurWriteNode == false) {
 	                    // not include cur active source
@@ -546,8 +527,6 @@ public class PhysicalDBPool {
                 }
                 
             } else {
-				
-				// TODO : add by zhuam	
 			    // 如果写节点不OK, 也要保证临时的读服务正常
 				if ( this.dataHostConfig.isTempReadHostAvailable() ) {
 				
@@ -580,9 +559,5 @@ public class PhysicalDBPool {
     }
 
     public String[] getSchemas() { return schemas; }
-
-    public void setSchemas(String[] mySchemas) {
-        this.schemas = mySchemas;
-    }
-
+    public void setSchemas(String[] mySchemas) { this.schemas = mySchemas; }
 }

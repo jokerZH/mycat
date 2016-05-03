@@ -358,6 +358,7 @@ public class MycatServer {
 	}
 	/**
 	 * save cur datanode index to properties file
+	 *  TODO
 	 *
 	 * @param dataNode
 	 * @param curIndex

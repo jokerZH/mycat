@@ -32,27 +32,26 @@ import org.slf4j.LoggerFactory;
 public class PhysicalDBNode {
 	protected static final Logger LOGGER = LoggerFactory.getLogger(PhysicalDBNode.class);
 
-	protected final String name;
-	protected final String database;
-	protected final PhysicalDBPool dbPool;	/* TODO 保存一个slice的连接 */
+	protected final String name;			/* TODO sliceName*/
+	protected final String database;		/* TODO 物理db名字 */
+	protected final PhysicalDBPool dbPool;	/* 保存本slice所在mysql实例的连接, 所以,多个schema是共享连接的 */
 
 	public PhysicalDBNode(String hostName, String database, PhysicalDBPool dbPool) {
 		this.name = hostName;
 		this.database = database;
 		this.dbPool = dbPool;
 	}
-
 	public String getName() { return name; }
 	public PhysicalDBPool getDbPool() { return dbPool; }
 	public String getDatabase() { return database; }
 
-	/* get connection from the same datasource */
+	/* 从连接池中获得连接 */
 	public void getConnectionFromSameSource(
-			String schema,		/* 物理dbName */
-			boolean autocommit,	/* 是否自动提交 */
+			String schema,				/* 物理dbName */
+			boolean autocommit,			/* 是否自动提交 */
 			BackendConnection exitsCon,	/* 参照的后端连接 */
-			ResponseHandler handler,	/* 处理数据需要 TODO */
-			Object attachment			/* 处理数据需要 TODO */
+			ResponseHandler handler,	/* 处理数据需要 */
+			Object attachment			/* TODO */
 	) throws Exception {
 
 		PhysicalDatasource ds = this.dbPool.findDatasouce(exitsCon);
@@ -63,6 +62,7 @@ public class PhysicalDBNode {
 		}
 	}
 
+	/* 检测参数schema是否和当前的database相同,db池子是否初始化成功  */
 	private void checkRequest(String schema){
 		if (schema != null && !schema.equals(this.database)) {
 			throw new RuntimeException("invalid param ,connection request db is :" + schema + " and datanode db is " + this.database);
@@ -73,19 +73,22 @@ public class PhysicalDBNode {
 		}
 	}
 
+	/* 获得一个后段连接  */
 	public void getConnection(
-			String schema,
-			boolean autoCommit,
-			RouteResultsetNode rrs,
-			ResponseHandler handler,
-			Object attachment
+			String schema,				/* 物理dbName  */
+			boolean autoCommit,			/* 是否自动提交 */
+			RouteResultsetNode rrs,		/* 路由结果 */
+			ResponseHandler handler,	/* 回应的处理方式 */
+			Object attachment			/* TODO */
 	) throws Exception {
 		checkRequest(schema);
 
 		if (dbPool.isInitSuccess()) {
 			if (rrs.canRunnINReadDB(autoCommit)) {
-				dbPool.getRWBanlanceCon(schema,autoCommit, handler, attachment, this.database);
+				/* 获得读或者写 */
+				dbPool.getRWBanlanceCon(schema, autoCommit, handler, attachment, this.database);
 			} else {
+				/* 获得一个写 */
 				dbPool.getSource().getConnection(schema,autoCommit, handler, attachment);
 			}
 

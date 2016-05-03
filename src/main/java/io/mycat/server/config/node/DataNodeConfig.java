@@ -23,12 +23,12 @@
  */
 package io.mycat.server.config.node;
 
-/* 用于描述一个数据节点的配置 TODO */
+/* 用于描述schema信息 只有dbName,   mysql实例的信息在DataHostConfig中  */
 public final class DataNodeConfig {
 
-    private String name;    /* TODO */
-    private String database;/* TODO */
-    private String dataHost;/* TODO */
+    private String name;        /* 相当于pdb name */
+    private String database;    /* 物理dbName */
+    private String dataHost;    /* db所在的主机的名字 */
 
     public DataNodeConfig() { super(); }
     public DataNodeConfig(String name, String database, String dataHost) {

@@ -38,8 +38,8 @@ public class SchemaConfig {
     private Map<String, TableConfig> tables; 	/* 逻辑db上的表 */
     private boolean noSharding;					/* 是否是分库 */
     private String dataNode;					/* 默认后端DB */
-    private Set<String> metaDataNodes;			/* 存放db信息,用于查看逻辑表信息的时候使用,所以一个分表逻辑表只需要保存一个db就好了 */
-    private Set<String> allDataNodes;			/* 存放所有db信息 */
+    private Set<String/*sliceName*/> metaDataNodes;			/* 存放db信息,用于查看逻辑表信息的时候使用,所以一个分表逻辑表只需要保存一个db就好了 */
+    private Set<String/*sliceName*/> allDataNodes;			/* 存放所有db信息 */
 
     private int defaultMaxLimit;		/* 当sql没有limit限制的时候,会自动加上defaultMaxLimit的限制 */
     private boolean checkSQLSchema;		/* TODO */
@@ -104,7 +104,6 @@ public class SchemaConfig {
 	public Set<String> getAllDataNodes() { return allDataNodes; }
 	public Map<String, String> getDataNodeDbTypeMap()  { return dataNodeDbTypeMap; }
 	public void setDataNodeDbTypeMap(Map<String, String> dataNodeDbTypeMap)  { this.dataNodeDbTypeMap = dataNodeDbTypeMap; }
-
 
 
 	/* 构建join表的关系, 结果子啊joinRel2TalbeMap中 */

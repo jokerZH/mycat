@@ -24,13 +24,10 @@
 package io.mycat.server.parser;
 
 import io.mycat.util.ParseUtil;
-
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * @author mycat
- */
+/* 解析sql,单纯的依靠字符匹配 */
 public final class ServerParse {
 
 	public static final int OTHER = -1;
@@ -57,8 +54,17 @@ public final class ServerParse {
 	public static final int DESCRIBE = 21;
     public static final int LOAD_DATA_INFILE_SQL = 99;
     public static final int DDL = 100;
+
+	/* 用于匹配load data语法 */
     private static final  Pattern pattern = Pattern.compile("(load)+\\s+(data)+\\s+\\w*\\s*(infile)+",Pattern.CASE_INSENSITIVE);
 
+	/**
+	 * <p>功能描述：解析sql语句,返回sql语句的类型 </p>
+	 *
+	 * @param stmt	sql语句
+	 *
+	 * @return sql语句的类型
+	 */
 	public static int parse(String stmt) {
 		int lenth = stmt.length();
 		for (int i = 0; i < lenth; ++i) {
@@ -69,11 +75,13 @@ public final class ServerParse {
 			case '\n':
 				continue;
 			case '/':
-				// such as /*!40101 SET character_set_client = @saved_cs_client
-				// */;
-				if (i == 0 && stmt.charAt(1) == '*' && stmt.charAt(2) == '!'
+				// such as /*!40101 SET character_set_client = @saved_cs_client */;
+				if (i == 0
+						&& stmt.charAt(1) == '*'
+						&& stmt.charAt(2) == '!'
 						&& stmt.charAt(lenth - 2) == '*'
-						&& stmt.charAt(lenth - 1) == '/') {
+						&& stmt.charAt(lenth - 1) == '/'
+					) {
 					return MYSQL_CMD_COMMENT;
 				}
 			case '#':
@@ -128,14 +136,17 @@ public final class ServerParse {
 		return OTHER;
 	}
 
-
+	// LOAD DATA
 	static int loadDataCheck(String stmt, int offset) {
 		if (stmt.length() > offset + 3) {
 			char c1 = stmt.charAt(++offset);
 			char c2 = stmt.charAt(++offset);
 			char c3 = stmt.charAt(++offset);
-			if ((c1 == 'O' || c1 == 'o') && (c2 == 'A' || c2 == 'a')
-					&& (c3 == 'D' || c3 == 'd')) {
+			if (
+					(c1 == 'O' || c1 == 'o') &&
+					(c2 == 'A' || c2 == 'a') &&
+					(c3 == 'D' || c3 == 'd')
+			) {
 				Matcher matcher = pattern.matcher(stmt);
 				return matcher.find() ? LOAD_DATA_INFILE_SQL : OTHER;
 			}
@@ -151,8 +162,11 @@ public final class ServerParse {
 			char c1 = stmt.charAt(++offset);
 			char c2 = stmt.charAt(++offset);
 			char c3 = stmt.charAt(++offset);
-			if ((c1 == 'E' || c1 == 'e') && (c2 == 'L' || c2 == 'l')
-					&& (c3 == 'P' || c3 == 'p')) {
+			if (
+					(c1 == 'E' || c1 == 'e') &&
+					(c2 == 'L' || c2 == 'l') &&
+					(c3 == 'P' || c3 == 'p')
+			) {
 				return (offset << 8) | HELP;
 			}
 		}
@@ -169,10 +183,15 @@ public final class ServerParse {
 			char c5 = stmt.charAt(++offset);
 			char c6 = stmt.charAt(++offset);
 			char c7 = stmt.charAt(++offset);
-			if ((c1 == 'X' || c1 == 'x') && (c2 == 'P' || c2 == 'p')
-					&& (c3 == 'L' || c3 == 'l') && (c4 == 'A' || c4 == 'a')
-					&& (c5 == 'I' || c5 == 'i') && (c6 == 'N' || c6 == 'n')
-					&& (c7 == ' ' || c7 == '\t' || c7 == '\r' || c7 == '\n')) {
+			if (
+					(c1 == 'X' || c1 == 'x') &&
+					(c2 == 'P' || c2 == 'p') &&
+					(c3 == 'L' || c3 == 'l') &&
+					(c4 == 'A' || c4 == 'a') &&
+					(c5 == 'I' || c5 == 'i') &&
+					(c6 == 'N' || c6 == 'n') &&
+					(c7 == ' ' || c7 == '\t' || c7 == '\r' || c7 == '\n')
+			) {
 				return (offset << 8) | EXPLAIN;
 			}
 		}
@@ -186,9 +205,12 @@ public final class ServerParse {
 			char c2 = stmt.charAt(++offset);
 			char c3 = stmt.charAt(++offset);
 			char c4 = stmt.charAt(++offset);
-			if ((c1 == 'I' || c1 == 'i') && (c2 == 'L' || c2 == 'l')
-					&& (c3 == 'L' || c3 == 'l')
-					&& (c4 == ' ' || c4 == '\t' || c4 == '\r' || c4 == '\n')) {
+			if (
+					(c1 == 'I' || c1 == 'i') &&
+					(c2 == 'L' || c2 == 'l') &&
+					(c3 == 'L' || c3 == 'l') &&
+					(c4 == ' ' || c4 == '\t' || c4 == '\r' || c4 == '\n')
+			) {
 				while (stmt.length() > ++offset) {
 					switch (stmt.charAt(offset)) {
 					case ' ':
@@ -196,9 +218,11 @@ public final class ServerParse {
 					case '\r':
 					case '\n':
 						continue;
+
 					case 'Q':
 					case 'q':
 						return killQueryCheck(stmt, offset);
+
 					default:
 						return (offset << 8) | KILL;
 					}
@@ -217,9 +241,13 @@ public final class ServerParse {
 			char c3 = stmt.charAt(++offset);
 			char c4 = stmt.charAt(++offset);
 			char c5 = stmt.charAt(++offset);
-			if ((c1 == 'U' || c1 == 'u') && (c2 == 'E' || c2 == 'e')
-					&& (c3 == 'R' || c3 == 'r') && (c4 == 'Y' || c4 == 'y')
-					&& (c5 == ' ' || c5 == '\t' || c5 == '\r' || c5 == '\n')) {
+			if (
+					(c1 == 'U' || c1 == 'u') &&
+					(c2 == 'E' || c2 == 'e') &&
+					(c3 == 'R' || c3 == 'r') &&
+					(c4 == 'Y' || c4 == 'y')
+					&& (c5 == ' ' || c5 == '\t' || c5 == '\r' || c5 == '\n')
+			) {
 				while (stmt.length() > ++offset) {
 					switch (stmt.charAt(offset)) {
 					case ' ':
@@ -227,6 +255,7 @@ public final class ServerParse {
 					case '\r':
 					case '\n':
 						continue;
+
 					default:
 						return (offset << 8) | KILL_QUERY;
 					}

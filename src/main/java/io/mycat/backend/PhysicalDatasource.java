@@ -43,17 +43,17 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-/* 后端节点,类似pdb, 但是保存一个mysql实例的连接 */
+/* 保存一个mysql实例的连接 */
 public abstract class PhysicalDatasource {
     public static final Logger LOGGER = LoggerFactory.getLogger(PhysicalDatasource.class);
+    private final DBHostConfig config;          /* mysql实力的配置 */
 
     private final String name;                  /* 节点名 */
-    private final int size;                     /* TODO 连接池的大小 */
-    private final DBHostConfig config;          /* mysql实力的配置 */
+    private final int size;                     /* 连接池的大小 */
     private final ConMap conMap = new ConMap(); /* 保存当前mysql实例的所有连接 */
-    private DBHeartbeat heartbeat;              /* TODO */
+    private DBHeartbeat heartbeat;              /* TODO 负责心跳 */
     private final boolean readNode;             /* 是否是读节点 */
-    private volatile long heartbeatRecoveryTime;/* TODO */
+    private volatile long heartbeatRecoveryTime;/* 两次心跳之间的最小间隔 */
     private final DataHostConfig hostConfig;    /* TODO */
     private final ConnectionHeartBeatHandler conHeartBeatHanler = new ConnectionHeartBeatHandler(); /* 负责具体的心跳检测 */
     private PhysicalDBPool dbPool;              /* 所属的slice */
@@ -67,6 +67,7 @@ public abstract class PhysicalDatasource {
         this.readNode = isReadNode;
     }
 
+    /* 判断连接是否是本mysql实例的 */
     public boolean isMyConnection(BackendConnection con) { return (con.getPool() == this); }
 
     public DataHostConfig getHostConfig() { return hostConfig; }
@@ -171,7 +172,7 @@ public abstract class PhysicalDatasource {
         }
     }
 
-    /* */
+    /* 发起心跳 */
     public void heatBeatCheck(long timeout, long conHeartBeatPeriod) {
         int ildeCloseCount = hostConfig.getMinCon() * 3;
         int maxConsInOneCheck = 5;
@@ -273,6 +274,7 @@ public abstract class PhysicalDatasource {
         if (TimeUtil.currentTimeMillis() < heartbeatRecoveryTime) {
             return;
         }
+
         if (!heartbeat.isStop()) {
             try {
                 heartbeat.heartbeat();
@@ -332,7 +334,7 @@ public abstract class PhysicalDatasource {
         });
     }
 
-    /* 获得一个连接, TODO 特么Conn怎么返回呢 */
+    /* 获得一个连接, 连接建立后会调用handler中的函数 */
     public void getConnection(String schema, boolean autocommit, final ResponseHandler handler, final Object attachment) throws IOException {
         BackendConnection con = this.conMap.tryTakeCon(schema, autocommit);
         if (con != null) {
