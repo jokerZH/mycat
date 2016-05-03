@@ -17,12 +17,10 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class MySQLFrontConnectionHandler implements
-		NIOHandler<MySQLFrontConnection> {
-	private static final byte[] AUTH_OK = new byte[] { 7, 0, 0, 2, 0, 0, 0, 2,
-			0, 0, 0 };
-	protected static final Logger LOGGER = LoggerFactory
-			.getLogger(MySQLFrontConnectionHandler.class);
+/* 客户端连接handler */
+public class MySQLFrontConnectionHandler implements NIOHandler<MySQLFrontConnection> {
+	private static final byte[] AUTH_OK = new byte[] { 7, 0, 0, 2, 0, 0, 0, 2, 0, 0, 0 };
+	protected static final Logger LOGGER = LoggerFactory.getLogger(MySQLFrontConnectionHandler.class);
 
 	@Override
 	public void onConnected(MySQLFrontConnection con) throws IOException {
@@ -30,8 +28,7 @@ public class MySQLFrontConnectionHandler implements
 	}
 
 	@Override
-	public void handle(MySQLFrontConnection con, ByteBuffer data,
-			final int start, final int readedLength) {
+	public void handle(MySQLFrontConnection con, ByteBuffer data, final int start, final int readedLength) {
 		switch (con.getState()) {
 		case connecting: {
 			doConnecting(con, data, start, readedLength);
@@ -47,20 +44,18 @@ public class MySQLFrontConnectionHandler implements
 		}
 
 		default:
-			LOGGER.warn("not handled connecton state  err " + con.getState()
-					+ " for con " + con);
+			LOGGER.warn("not handled connecton state  err " + con.getState() + " for con " + con);
 			break;
-
 		}
 	}
 
-	private void doConnecting(MySQLFrontConnection source, ByteBuffer buf,
-			final int start, final int readedLength) {
+	/* 在相互校验的过程中 */
+	private void doConnecting(MySQLFrontConnection source, ByteBuffer buf, final int start, final int readedLength) {
 		byte[] data = new byte[readedLength];
 		buf.get(data, start, readedLength);
+
 		// check quit packet
-		if (data.length == QuitPacket.QUIT.length
-				&& data[4] == MySQLPacket.COM_QUIT) {
+		if (data.length == QuitPacket.QUIT.length && data[4] == MySQLPacket.COM_QUIT) {
 			source.close("quit packet");
 			return;
 		}
@@ -70,41 +65,37 @@ public class MySQLFrontConnectionHandler implements
 
 		// check user
 		if (!checkUser(source, auth.user, source.getHost())) {
-			failure(source, ErrorCode.ER_ACCESS_DENIED_ERROR,
-					"Access denied for user '" + auth.user + "'");
+			failure(source, ErrorCode.ER_ACCESS_DENIED_ERROR, "Access denied for user '" + auth.user + "'");
 			return;
 		}
 
 		// check password
 		if (!checkPassword(source, auth.password, auth.user)) {
-			failure(source, ErrorCode.ER_ACCESS_DENIED_ERROR,
-					"Access denied for user '" + auth.user + "'");
+			failure(source, ErrorCode.ER_ACCESS_DENIED_ERROR, "Access denied for user '" + auth.user + "'");
 			return;
 		}
 
 		// check schema
 		switch (checkSchema(source, auth.database, auth.user)) {
 		case ErrorCode.ER_BAD_DB_ERROR:
-			failure(source, ErrorCode.ER_BAD_DB_ERROR, "Unknown database '"
-					+ auth.database + "'");
+			failure(source, ErrorCode.ER_BAD_DB_ERROR, "Unknown database '" + auth.database + "'");
 			break;
+
 		case ErrorCode.ER_DBACCESS_DENIED_ERROR:
-			String s = "Access denied for user '" + auth.user
-					+ "' to database '" + auth.database + "'";
+			String s = "Access denied for user '" + auth.user + "' to database '" + auth.database + "'";
 			failure(source, ErrorCode.ER_DBACCESS_DENIED_ERROR, s);
 			break;
+
 		default:
 			success(source, auth);
 		}
 	}
 
-	protected boolean checkUser(MySQLFrontConnection source, String user,
-			String host) {
+	protected boolean checkUser(MySQLFrontConnection source, String user, String host) {
 		return source.getPrivileges().userExists(user, host);
 	}
 
-	protected boolean checkPassword(MySQLFrontConnection source,
-			byte[] password, String user) {
+	protected boolean checkPassword(MySQLFrontConnection source, byte[] password, String user) {
 		String pass = source.getPrivileges().getPassword(user);
 
 		// check null
@@ -159,15 +150,16 @@ public class MySQLFrontConnectionHandler implements
 		}
 	}
 
+	/* 校验ok */
 	protected void success(MySQLFrontConnection source, AuthPacket auth) {
 		source.setAuthenticated(true);
 		source.setUser(auth.user);
 		source.setSchema(auth.database);
 		source.setCharsetIndex(auth.charsetIndex);
+
 		if (LOGGER.isInfoEnabled()) {
 			StringBuilder s = new StringBuilder();
-			s.append(source).append('\'').append(auth.user)
-					.append("' login success");
+			s.append(source).append('\'').append(auth.user).append("' login success");
 			byte[] extra = auth.extra;
 			if (extra != null && extra.length > 0) {
 				s.append(",extra:").append(new String(extra));
@@ -177,8 +169,7 @@ public class MySQLFrontConnectionHandler implements
 
 		source.write(AUTH_OK);
 		boolean clientCompress = Capabilities.CLIENT_COMPRESS == (Capabilities.CLIENT_COMPRESS & auth.clientFlags);
-		boolean usingCompress = MycatServer.getInstance().getConfig()
-				.getSystem().getUseCompression() == 1;
+		boolean usingCompress = MycatServer.getInstance().getConfig().getSystem().getUseCompression() == 1;
 		if (clientCompress && usingCompress) {
 			source.setSupportCompress(true);
 		}
@@ -190,16 +181,15 @@ public class MySQLFrontConnectionHandler implements
 		source.writeErrMessage(errno, info);
 	}
 
-	public void onClosed(MySQLFrontConnection con,String reason) {
+	public void onClosed(MySQLFrontConnection con,String reason) {}
 
-	}
-
-	public void doHandleBusinessMsg(final MySQLFrontConnection source,
-			final ByteBuffer buf, final int start, final int readedLength) {
+	/* 处理请求 */
+	public void doHandleBusinessMsg(final MySQLFrontConnection source, final ByteBuffer buf, final int start, final int readedLength) {
 		byte[] data = new byte[readedLength];
 		buf.get(data, start, readedLength);
-		if (source.getLoadDataInfileHandler() != null
-				&& source.getLoadDataInfileHandler().isStartLoadData()) {
+
+		// 如果现在使用load data功能 TODO
+		if (source.getLoadDataInfileHandler() != null && source.getLoadDataInfileHandler().isStartLoadData()) {
 			MySQLMessage mm = new MySQLMessage(data);
 			int packetLength = mm.readUB3();
 			if (packetLength + 4 == data.length) {
@@ -207,6 +197,7 @@ public class MySQLFrontConnectionHandler implements
 			}
 			return;
 		}
+
 		switch (data[4]) {
 		case MySQLPacket.COM_INIT_DB:
 			source.initDB(data);

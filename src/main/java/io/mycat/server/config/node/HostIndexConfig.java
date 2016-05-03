@@ -2,7 +2,7 @@ package io.mycat.server.config.node;
 
 import java.util.Properties;
 
-/* TODO */
+/* 保存主机名和index的对应关系 */
 public class HostIndexConfig {
 	private Properties props = new Properties();	/* TODO */
 

@@ -19,13 +19,11 @@ import org.slf4j.LoggerFactory;
 /* 存放当前所有连接的信息，包括客户端和服务端等，以及Network部分所使用共用对象 */
 public class NetSystem {
 	private static final Logger LOGGER = LoggerFactory.getLogger(NetSystem.class);
-
-	public static final int RUNNING = 0;
-	public static final int SHUTING_DOWN = -1;
-
 	private static NetSystem INSTANCE;
 	public static NetSystem getInstance() { return INSTANCE; }
 
+	public static final int RUNNING = 0;
+	public static final int SHUTING_DOWN = -1;
 
 	private final BufferPool bufferPool;			/* 总的buffer分配器 */
 	private final NameableExecutor executor;		/* 用来执行那些耗时的任务 */
@@ -40,8 +38,7 @@ public class NetSystem {
 	/* config */
 	private SystemConfig netConfig;
 
-	private NIOConnector connector;	/* 用于连接后端 */
-
+	private NIOConnector connector;	/* 用于连接后端conn */
 
 	public NetSystem(BufferPool bufferPool, NameableExecutor executor, NamebleScheduledExecutor timer) throws IOException {
 		this.bufferPool = bufferPool;

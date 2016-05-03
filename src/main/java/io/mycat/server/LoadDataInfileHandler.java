@@ -23,11 +23,7 @@
  */
 package io.mycat.server;
 
-/**
- * load data infile
- * 
- * @author magicdoom
- */
+/* load data infile */
 public interface LoadDataInfileHandler
 {
 
@@ -42,5 +38,4 @@ public interface LoadDataInfileHandler
     byte getLastPackId();
 
     boolean isStartLoadData();
-
 }

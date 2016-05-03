@@ -40,10 +40,10 @@ import java.util.concurrent.locks.ReentrantLock;
 /* 对应mycat的配置 */
 public class MycatConfig implements ConfigReLoader{
 	private static final Logger LOGGER = LoggerFactory.getLogger("MycatConfig");
-
 	private static final int RELOAD = 1;
 	private static final int ROLLBACK = 2;
     private static final int RELOAD_ALL = 3;
+	private final ReentrantLock lock;
 
 	/* system */
 	private volatile SystemConfig system;
@@ -55,17 +55,15 @@ public class MycatConfig implements ConfigReLoader{
 	/* mycat */
 	private volatile Map<String/*userName*/, UserConfig> users;				/* 用户信息 */
 	private volatile Map<String/*ldbName*/, SchemaConfig> schemas;			/* 逻辑db信息 */
-	private volatile Map<String, PhysicalDBNode> dataNodes;
-	private volatile Map<String/*sliceName*/, PhysicalDBPool> dataHosts;
+	private volatile Map<String/*dbName*/, PhysicalDBNode> dataNodes;		/* 物理db对应的连接池 */
+	private volatile Map<String/*sliceName*/, PhysicalDBPool> dataHosts;	/* 具有主从关系的多个mysql实例 */
 	private volatile HostIndexConfig hostIndexConfig;
 	private volatile CharsetConfig charsetConfig;
 	private volatile SequenceConfig sequenceConfig;
 
-
 	private long reloadTime;
 	private long rollbackTime;
 	private int status;
-	private final ReentrantLock lock;
 
 	public MycatConfig() {
 		ConfigInitializer confInit = new ConfigInitializer(true);
@@ -100,8 +98,6 @@ public class MycatConfig implements ConfigReLoader{
 	private volatile CharsetConfig _charsetConfig;
 	private volatile SequenceConfig _sequenceConfig;
 
-
-
 	public SystemConfig getSystem() { return system; }
 	public Map<String, UserConfig> getUsers() { return users; }
 	public Map<String, UserConfig> getBackupUsers() { return _users; }
@@ -126,7 +122,6 @@ public class MycatConfig implements ConfigReLoader{
 	public SequenceConfig getSequenceConfig() { return sequenceConfig; }
 	public void setSequenceConfig(SequenceConfig sequenceConfig) { this.sequenceConfig = sequenceConfig; }
 
-
 	public String getHostIndex(String hostName, String index) {
 		if(this.hostIndexConfig.getProps().isEmpty()
 		   || !this.hostIndexConfig.getProps().containsKey(hostName)){
@@ -138,6 +133,7 @@ public class MycatConfig implements ConfigReLoader{
 		this.hostIndexConfig.getProps().put(hostName, index);
 	}
 
+	/* 获得某个slice下所有物理dbName */
 	public String[] getDataNodeSchemasOfDataHost(String dataHost) {
 		ArrayList<String> schemas = new ArrayList<String>(30);
 		for (PhysicalDBNode dn : dataNodes.values()) {
@@ -149,9 +145,16 @@ public class MycatConfig implements ConfigReLoader{
 	}
 
 	public boolean canRollback() {
-		if (_users == null || _schemas == null || _dataNodes == null
-				|| _dataHosts == null || _cluster == null
-				|| _quarantine == null || status == ROLLBACK) {
+		if (
+				_users == null ||
+				_schemas == null ||
+				_dataNodes == null ||
+				_dataHosts == null ||
+				_cluster == null ||
+				_quarantine == null ||
+				status == ROLLBACK
+			)
+		{
 			return false;
 		} else {
 			return true;
@@ -254,8 +257,10 @@ public class MycatConfig implements ConfigReLoader{
 		}
 	}
 
+	/* 初始化mysql实例 */
 	public boolean initDatasource(){
 		LOGGER.info("Initialize dataHost ...");
+
 		for (PhysicalDBPool node : dataHosts.values()) {
 			String index = this.getHostIndex(node.getHostName(),"0");
 			if (!"0".equals(index)) {
@@ -266,6 +271,8 @@ public class MycatConfig implements ConfigReLoader{
 		}
 		return true;
 	}
+
+	/* TODO */
 	public boolean reloadDatasource(){
 		Map<String, PhysicalDBPool> cNodes = this.getDataHosts();
 		boolean reloadStatus = true;
@@ -296,6 +303,8 @@ public class MycatConfig implements ConfigReLoader{
 
 		return reloadStatus;
 	}
+
+	/* TODO */
 	public boolean rebackDatasource(){
 		// 如果回滚已经存在的pool
 		boolean rollbackStatus = true;

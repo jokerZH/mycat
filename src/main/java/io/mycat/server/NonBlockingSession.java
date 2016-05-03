@@ -44,10 +44,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- * @author mycat
- * @author mycat
- */
+/* TODO */
 public class NonBlockingSession{
 	public static final Logger LOGGER = LoggerFactory
 			.getLogger(NonBlockingSession.class);

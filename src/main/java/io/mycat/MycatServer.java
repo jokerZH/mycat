@@ -151,27 +151,23 @@ public class MycatServer {
 		}
 	}
 
-	public MycatConfig getConfig() {
-		return config;
-	}
+	public MycatConfig getConfig() { return config; }
 
+	/* main函数 */
 	public void startup() throws IOException {
-
 		SystemConfig system = config.getSystem();
 		int processorCount = system.getProcessors();
 
 		// server startup
 		LOGGER.info("===============================================");
 		LOGGER.info(NAME + " is ready to startup ...");
-		String inf = "Startup processors ...,total processors:"
-				+ system.getProcessors() + ",aio thread pool size:"
-				+ system.getProcessorExecutor()
-				+ "    \r\n each process allocated socket buffer pool "
-				+ " bytes ,buffer chunk size:"
-				+ system.getProcessorBufferChunk()
-				+ "  buffer pool's capacity(buferPool/bufferChunk) is:"
-				+ system.getProcessorBufferPool()
-				/ system.getProcessorBufferChunk();
+		String inf = "Startup processors ...," +
+				"total processors:" + system.getProcessors() + "," +
+				"aio thread pool size:" + system.getProcessorExecutor()
+				+ "    \r\n " +
+				"each process allocated socket buffer pool bytes ," +
+				"buffer chunk size:" + system.getProcessorBufferChunk() + "," +
+				"buffer pool's capacity(buferPool/bufferChunk) is:" + system.getProcessorBufferPool()/system.getProcessorBufferChunk();
 		LOGGER.info(inf);
 		LOGGER.info("sysconfig params:" + system.toString());
 
@@ -185,32 +181,29 @@ public class MycatServer {
 		LOGGER.info(NAME + " is ready to startup ,network config:" + system);
 
 		// message byte buffer pool
-		BufferPool bufferPool = new BufferPool(processBuferPool,
-				processBufferChunk, system.getFrontSocketSoRcvbuf(),
-				socketBufferLocalPercent / processorCount);
-		// Business Executor ，用来执行那些耗时的任务
-		NameableExecutor businessExecutor = ExecutorUtil.create(
-				"BusinessExecutor", threadPoolSize);
+		BufferPool bufferPool = new BufferPool(processBuferPool, processBufferChunk, system.getFrontSocketSoRcvbuf(), socketBufferLocalPercent / processorCount);
+
+		// 异步执行使用的线程池
+		NameableExecutor businessExecutor = ExecutorUtil.create("BusinessExecutor", threadPoolSize);
 		// 定时器Executor，用来执行定时任务
-		timerExecutor = ExecutorUtil.createSheduledExecute("Timer",
-				system.getTimerExecutor());
-		listeningExecutorService = MoreExecutors
-				.listeningDecorator(businessExecutor);
+		timerExecutor = ExecutorUtil.createSheduledExecute("Timer", system.getTimerExecutor());
+		// TODO
+		listeningExecutorService = MoreExecutors.listeningDecorator(businessExecutor);
 
 		// create netsystem to store our network related objects
-		NetSystem netSystem = new NetSystem(bufferPool, businessExecutor,
-				timerExecutor);
+		NetSystem netSystem = new NetSystem(bufferPool, businessExecutor, timerExecutor);
 		netSystem.setNetConfig(system);
+
 		// Reactor pool
-		NIOReactorPool reactorPool = new NIOReactorPool(
-				BufferPool.LOCAL_BUF_THREAD_PREX + "NIOREACTOR", processorCount);
-		NIOConnector connector = new NIOConnector(
-				BufferPool.LOCAL_BUF_THREAD_PREX + "NIOConnector", reactorPool);
+		NIOReactorPool reactorPool = new NIOReactorPool(BufferPool.LOCAL_BUF_THREAD_PREX + "NIOREACTOR", processorCount);
+
+		// Connector
+		NIOConnector connector = new NIOConnector(BufferPool.LOCAL_BUF_THREAD_PREX + "NIOConnector", reactorPool);
 		connector.start();
 		netSystem.setConnector(connector);
 
-		MySQLFrontConnectionFactory frontFactory = new MySQLFrontConnectionFactory(
-				new MySQLFrontConnectionHandler());
+		// 客户端连接工厂
+		MySQLFrontConnectionFactory frontFactory = new MySQLFrontConnectionFactory(new MySQLFrontConnectionHandler());
 		NIOAcceptor server = new NIOAcceptor(BufferPool.LOCAL_BUF_THREAD_PREX
 				+ NAME + "Server", system.getBindIp(), system.getServerPort(),
 				frontFactory, reactorPool);

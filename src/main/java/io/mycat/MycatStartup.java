@@ -33,12 +33,10 @@ import java.util.Date;
 /**
  * @author mycat
  */
-public final class zhonghuaStartUp {
+public final class MycatStartup {
 	private static final String dateFormat = "yyyy-MM-dd HH:mm:ss";
-
 	private static final class Holder {
-		private static final Logger LOGGER = LoggerFactory
-				.getLogger(MycatStartup.class);
+		private static final Logger LOGGER = LoggerFactory.getLogger(MycatStartup.class);
 	}
 
 	public static void main(String[] args) {

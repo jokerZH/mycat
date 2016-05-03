@@ -81,9 +81,9 @@ public final class SystemConfig {
 	private int managerPort;					/* mycat管理监听的端口 */
 
 	/* thread num */
-	private int processors;						/* TODO 处理器个数 */
-	private int processorExecutor;				/* TODO 处理的个数 */
-	private int timerExecutor;					/* TODO 定期调度的线程池大小 */
+	private int processors;						/* 处理器个数 */
+	private int processorExecutor;				/* 异步线程池大小 */
+	private int timerExecutor;					/* 定期调度的线程池大小 */
 	private int managerExecutor;				/* TODO */
 
 	/* buffer */

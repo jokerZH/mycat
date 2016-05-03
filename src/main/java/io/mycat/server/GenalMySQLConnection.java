@@ -14,33 +14,27 @@ import java.nio.channels.SocketChannel;
 import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/**
- * MySQL Front connection
- * 
- * @author wuzhih
- * 
- */
-
+/*客户端连接 */
 public class GenalMySQLConnection extends Connection {
 	public static final int maxPacketSize = 16 * 1024 * 1024;
 	protected final AtomicBoolean isQuit = new AtomicBoolean(false);
-	protected byte[] seed;
-	protected String user;
-	protected volatile String schema;
-	protected volatile int txIsolation;
-	protected volatile boolean autocommit;
-	protected volatile boolean txInterrupted;
-	protected volatile String txInterrputMsg = "";
-	protected long lastInsertId;
-	protected volatile String oldSchema;
-	protected long clientFlags;
-	protected String password;
-	protected boolean isAccepted;
-	protected boolean isAuthenticated;
-	protected volatile String charset;
-	protected volatile int charsetIndex;
-	protected HandshakePacket handshake;
-	protected boolean isSupportCompress = false;
+	protected byte[] seed;								/* 权限表中的seed */
+	protected String user;								/* 用户名 */
+	protected String password;							/* 密码 */
+	protected volatile String schema;					/* 逻辑LDBName */
+	protected volatile int txIsolation;					/* mysql的隔离级别 */
+	protected volatile boolean autocommit;				/* 是否自动提交 */
+	protected volatile boolean txInterrupted;			/* TODO */
+	protected volatile String txInterrputMsg = "";		/* TODO */
+	protected long lastInsertId;						/* 最新的自增id */
+	protected volatile String oldSchema;				/* 老的逻辑LDBName */
+	protected long clientFlags;							/* TODO 客户端的flag */
+	protected boolean isAccepted;						/* TODO 连接是否建立 */
+	protected boolean isAuthenticated;					/* 是否已经通过认证 */
+	protected volatile String charset;					/* 字符集 */
+	protected volatile int charsetIndex;				/* 字符集下标 */
+	protected HandshakePacket handshake;				/* 发给客户端的第一个权限包 */
+	protected boolean isSupportCompress = false;		/* 是否压缩 */
 
 	public GenalMySQLConnection(SocketChannel channel) {
 		super(channel);
@@ -48,54 +42,29 @@ public class GenalMySQLConnection extends Connection {
 		this.autocommit = true;
 	}
 
-	public int getTxIsolation() {
-		return txIsolation;
-	}
+	public int getTxIsolation() { return txIsolation; }
+	public void setTxIsolation(int txIsolation) { this.txIsolation = txIsolation; }
+	public boolean isAutocommit() { return autocommit; }
+	public boolean isAuthenticated() { return isAuthenticated; }
+	public boolean isSupportCompress() { return isSupportCompress; }
+	public void setSupportCompress(boolean isSupportCompress) { this.isSupportCompress = isSupportCompress; }
+	public void setAutocommit(boolean autocommit) { this.autocommit = autocommit; }
+	public String getPassword() { return password; }
+	public void setPassword(String password) { this.password = password; }
+	public long getLastInsertId() { return lastInsertId; }
+	public void setLastInsertId(long lastInsertId) { this.lastInsertId = lastInsertId; }
+	public void setAuthenticated(boolean isAuthenticated) { this.isAuthenticated = isAuthenticated; }
+	public String getUser() { return user; }
+	public int getCharsetIndex() { return charsetIndex; }
+	public void setUser(String user) { this.user = user; }
+	public String getSchema() { return schema; }
+	public String getCharset() { return charset; }
+	public byte[] getSeed() { return seed; }
+	public boolean isTxInterrupted() { return txInterrupted; }
+	public HandshakePacket getHandshake() { return handshake; }
+	public void setHandshake(HandshakePacket handshake) { this.handshake = handshake; }
 
-	public void setTxIsolation(int txIsolation) {
-		this.txIsolation = txIsolation;
-	}
-
-	public boolean isAutocommit() {
-		return autocommit;
-	}
-
-	public boolean isAuthenticated() {
-		return isAuthenticated;
-	}
-
-	public boolean isSupportCompress() {
-		return isSupportCompress;
-	}
-
-	public void setSupportCompress(boolean isSupportCompress) {
-		this.isSupportCompress = isSupportCompress;
-	}
-
-	public void setAutocommit(boolean autocommit) {
-		this.autocommit = autocommit;
-	}
-
-	public String getPassword() {
-		return password;
-	}
-
-	public void setPassword(String password) {
-		this.password = password;
-	}
-
-	public long getLastInsertId() {
-		return lastInsertId;
-	}
-
-	public void setLastInsertId(long lastInsertId) {
-		this.lastInsertId = lastInsertId;
-	}
-
-	public void setAuthenticated(boolean isAuthenticated) {
-		this.isAuthenticated = isAuthenticated;
-	}
-
+	/* 写一个错误信息 */
 	public void writeErrMessage(int errno, String msg) {
 		ErrorPacket err = new ErrorPacket();
 		err.packetId = 1;
@@ -104,29 +73,16 @@ public class GenalMySQLConnection extends Connection {
 		err.write(this);
 	}
 
-	public String getUser() {
-		return user;
-	}
-
-	public int getCharsetIndex() {
-		return charsetIndex;
-	}
-
-	public void setUser(String user) {
-		this.user = user;
-	}
-
-	public String getSchema() {
-		return schema;
-	}
-
+	/* 根据字符集编码src字符串 */
 	public final static byte[] encodeString(String src, String charset) {
 		if (src == null) {
 			return null;
 		}
+
 		if (charset == null) {
 			return src.getBytes();
 		}
+
 		try {
 			return src.getBytes(charset);
 		} catch (UnsupportedEncodingException e) {
@@ -134,6 +90,7 @@ public class GenalMySQLConnection extends Connection {
 		}
 	}
 
+	/* 设置逻辑DB */
 	public void setSchema(String newSchema) {
 		String curSchema = schema;
 		if (curSchema == null) {
@@ -145,10 +102,7 @@ public class GenalMySQLConnection extends Connection {
 		}
 	}
 
-	public byte[] getSeed() {
-		return seed;
-	}
-
+	/* 设置字符集合 */
 	public boolean setCharsetIndex(int ci) {
 		String charset = CharsetUtil.getCharset(ci);
 		if (charset != null) {
@@ -158,10 +112,7 @@ public class GenalMySQLConnection extends Connection {
 		}
 	}
 
-	public String getCharset() {
-		return charset;
-	}
-
+	/* 设置字符集 */
 	public boolean setCharset(String charset) {
 		
 		//修复PHP字符集设置错误, 如： set names 'utf8'
@@ -180,9 +131,7 @@ public class GenalMySQLConnection extends Connection {
 		}
 	}
 
-	/**
-	 * 设置是否需要中断当前事务
-	 */
+	/* 设置是否需要中断当前事务 */
 	public void setTxInterrupt(String txInterrputMsg) {
 		if (!autocommit && !txInterrupted) {
 			txInterrupted = true;
@@ -190,20 +139,8 @@ public class GenalMySQLConnection extends Connection {
 		}
 	}
 
-	public boolean isTxInterrupted() {
-		return txInterrupted;
-	}
 
-	public HandshakePacket getHandshake() {
-		return handshake;
-	}
-
-	public void setHandshake(HandshakePacket handshake) {
-		this.handshake = handshake;
-	}
-
-	private static byte[] passwd(String pass, HandshakePacket hs)
-			throws NoSuchAlgorithmException {
+	private static byte[] passwd(String pass, HandshakePacket hs) throws NoSuchAlgorithmException {
 		if (pass == null || pass.length() == 0) {
 			return null;
 		}
@@ -216,6 +153,7 @@ public class GenalMySQLConnection extends Connection {
 		return SecurityUtil.scramble411(passwd, seed);
 	}
 
+	/* 发送认证权限包 */
 	public void authenticate() {
 		AuthPacket packet = new AuthPacket();
 		packet.packetId = 1;

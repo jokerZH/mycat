@@ -16,8 +16,8 @@ import org.slf4j.LoggerFactory;
  * 一个读写线程
  */
 public final class NIOReactor {
-	private static final Logger LOGGER = LoggerFactory
-			.getLogger(NIOReactor.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(NIOReactor.class);
+
 	private final String name;
 	private final RW reactorR;
 
@@ -30,6 +30,7 @@ public final class NIOReactor {
 		new Thread(reactorR, name + "-RW").start();
 	}
 
+	/* 讲某个连接注册到这里处理 */
 	final void postRegister(Connection c) {
 		reactorR.registerQueue.offer(c);
 		reactorR.selector.wakeup();

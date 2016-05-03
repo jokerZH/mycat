@@ -25,7 +25,7 @@ public final class NIOConnector extends Thread {
 	private final String name;								/* 名字 */
 	private final Selector selector;						/* select的核心 */
 	private final BlockingQueue<Connection> connectQueue;	/* 待处理队列 */
-	private long connectCount;								/* 管理的连接数目 */
+	private long connectCount;								/* wake up的个数 */
 	private final NIOReactorPool reactorPool;				/* 负责具体的select的事件处理 */
 
 	public NIOConnector(String name, NIOReactorPool reactorPool) throws IOException {
@@ -87,7 +87,7 @@ public final class NIOConnector extends Thread {
 	}
 
 
-	/* 发起连接行为 */
+	/* 对connectQueue中所有Conn 发起连接行为 */
 	private void connect(Selector selector) {
 		Connection c = null;
 		while ((c = connectQueue.poll()) != null) {
@@ -102,7 +102,6 @@ public final class NIOConnector extends Thread {
 	}
 
 	/* 连接建立后调用 */
-	@SuppressWarnings("unchecked")
 	private void finishConnect(SelectionKey key, Object att) {
 		Connection c = (Connection) att;
 		try {
@@ -112,7 +111,8 @@ public final class NIOConnector extends Thread {
 				System.out.println("----------------ConnectIdGenerator.getINSTNCE().getId()-----------------"
 						+ ConnectIdGenerator.getINSTNCE().getId());
 				NIOReactor reactor = reactorPool.getNextReactor();
-				reactor.postRegister(c);	/* 将连接交给某个reactor处理 */
+				// 将连接交给某个reactor处理
+				reactor.postRegister(c);
 
 			}
 		} catch (Throwable e) {

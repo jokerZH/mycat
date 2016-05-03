@@ -26,13 +26,7 @@ import java.net.InetSocketAddress;
 import java.nio.channels.SocketChannel;
 import java.util.Set;
 
-/**
- * MySQL Front connection
- *
- * @author wuzhih
- *
- */
-
+/* 客户端连接 */
 public class MySQLFrontConnection extends GenalMySQLConnection {
 	protected FrontendPrivileges privileges;
 
@@ -41,6 +35,7 @@ public class MySQLFrontConnection extends GenalMySQLConnection {
 	private final NonBlockingSession session;
 	private boolean readOnlyUser = false;
 
+	/* 返回服务端的能力flag */
 	protected int getServerCapabilities() {
 		int flag = 0;
 		flag |= Capabilities.CLIENT_LONG_PASSWORD;
@@ -71,17 +66,16 @@ public class MySQLFrontConnection extends GenalMySQLConnection {
 
 		session = new NonBlockingSession(this);
 		InetSocketAddress remoteAddr = null;
-		InetSocketAddress localAddr = (InetSocketAddress) channel
-				.getLocalAddress();
-		remoteAddr = (InetSocketAddress) ((SocketChannel) channel)
-				.getRemoteAddress();
+		InetSocketAddress localAddr = (InetSocketAddress) channel.getLocalAddress();
+		remoteAddr = (InetSocketAddress) ((SocketChannel) channel).getRemoteAddress();
 		this.host = remoteAddr.getHostString();
 		this.port = localAddr.getPort();
 		this.localPort = remoteAddr.getPort();
-		loadDataInfileHandler = new ServerLoadDataInfileHandler(this);
 
+		loadDataInfileHandler = new ServerLoadDataInfileHandler(this);
 	}
 
+	/* 发送一个认证权限包 */
 	public void sendAuthPackge() throws IOException {
 		// 生成认证数据
 		byte[] rand1 = RandomUtil.randomBytes(8);
@@ -106,7 +100,7 @@ public class MySQLFrontConnection extends GenalMySQLConnection {
 		hs.restOfScrambleBuff = rand2;
 		hs.write(this);
 
-		// asynread response
+		// 尝试读下,万一有呢
 		this.asynRead();
 	}
 
@@ -120,22 +114,12 @@ public class MySQLFrontConnection extends GenalMySQLConnection {
 		}
 	}
 
-	public FrontendPrivileges getPrivileges() {
-		return privileges;
-	}
+	public FrontendPrivileges getPrivileges() { return privileges; }
+	public void setPrivileges(FrontendPrivileges privileges) { this.privileges = privileges; }
+	public boolean isTxInterrupted() {return txInterrupted; }
+	public NonBlockingSession getSession2() { return this.session; }
 
-	public void setPrivileges(FrontendPrivileges privileges) {
-		this.privileges = privileges;
-	}
-
-	public boolean isTxInterrupted() {
-		return txInterrupted;
-	}
-
-	public NonBlockingSession getSession2() {
-		return this.session;
-	}
-
+	/* 更改逻辑db */
 	public void initDB(byte[] data) {
 		MySQLMessage mm = new MySQLMessage(data);
 		mm.position(5);
@@ -143,15 +127,15 @@ public class MySQLFrontConnection extends GenalMySQLConnection {
 
 		// 检查schema的有效性
 		if (db == null || !privileges.schemaExists(db)) {
-			writeErrMessage(ErrorCode.ER_BAD_DB_ERROR, "Unknown database '"
-					+ db + "'");
+			writeErrMessage(ErrorCode.ER_BAD_DB_ERROR, "Unknown database '" + db + "'");
 			return;
 		}
+
 		if (!privileges.userExists(user, host)) {
-			writeErrMessage(ErrorCode.ER_ACCESS_DENIED_ERROR,
-					"Access denied for user '" + user + "'");
+			writeErrMessage(ErrorCode.ER_ACCESS_DENIED_ERROR, "Access denied for user '" + user + "'");
 			return;
 		}
+
 		readOnlyUser = privileges.isReadOnly(user);
 		Set<String> schemas = privileges.getUserSchemas(user);
 		if (schemas == null || schemas.size() == 0 || schemas.contains(db)) {

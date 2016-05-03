@@ -22,8 +22,8 @@ public abstract class Connection implements ClosableConnection{
 	public static Logger LOGGER = LoggerFactory.getLogger(Connection.class);
 
 	protected String host;		/* ip 		*/
-	protected int port;			/* 本地port */
-	protected int localPort;	/* 远程port */
+	protected int port;			/* port */
+	protected int localPort;	/* 本地port */
 	protected long id;			/* 连接ID 	*/
 
 	private State state = State.connecting;	/* 当前连接的状态 */
