@@ -25,38 +25,20 @@ package io.mycat.server;
 
 import java.util.Set;
 
-/**
- * 权限提供者
- * 
- * @author mycat
- */
+/* 权限判断 */
 public interface FrontendPrivileges {
-
-    /**
-     * 检查schema是否存在
-     */
+    /* 检查schema是否存在 */
     boolean schemaExists(String schema);
 
-    /**
-     * 检查用户是否存在，并且可以使用host实行隔离策略。
-     */
+    /* 检查用户是否存在，并且可以使用host实行隔离策略 */
     boolean userExists(String user, String host);
 
-    /**
-     * 提供用户的服务器端密码
-     */
+    /* 提供用户的服务器端密码 */
     String getPassword(String user);
 
-    /**
-     * 提供有效的用户schema集合
-     */
+    /* 提供有效的用户schema集合 */
     Set<String> getUserSchemas(String user);
     
-    /**
-     * 检查用户是否为只读权限
-     * @param user
-     * @return
-     */
+    /* 检查用户是否为只读权限 */
     boolean isReadOnly(String user);
-
 }

@@ -27,21 +27,22 @@ import io.mycat.server.parser.ServerParse;
 import io.mycat.sqlengine.mpp.LoadData;
 import java.io.Serializable;
 
+/* 路由结果 */
 public final class RouteResultsetNode implements Serializable , Comparable<RouteResultsetNode> {
 	private static final long serialVersionUID = 1L;
 
-	private final String name; 				// sliceName
-	private String statement; 				// 后端执行的语句
-	private final String srcStatement;		// 客户端传入的sql语句
-	private final int sqlType;				// sql类型
-	private volatile boolean canRunInReadDB;// 是否可以在read节点上执行,根据sql是否是读请求决定
-	private final boolean hasBlanceFlag;	// 如果sql语句有/*balance*/hint就为true
+	private final String name; 				/* sliceName */
+	private String statement; 				/* 后端执行的语句 */
+	private final String srcStatement;		/* 客户端传入的sql语句 */
+	private final int sqlType;				/* sql类型 */
+	private volatile boolean canRunInReadDB;/* 是否可以在read节点上执行,根据sql是否是读请求决定 */
+	private final boolean hasBlanceFlag;	/* 如果sql语句有 balance hint就为true */
 
-	private int limitStart;			// TODO
-	private int limitSize;			// TODO
-	private int totalNodeSize =0; 	//方便后续jdbc批量获取扩展
+	private int limitStart;			/* select语句增加的限制,限制结果大小	*/
+	private int limitSize;			/* 同上 */
+	private int totalNodeSize =0; 	/* TODO 方便后续jdbc批量获取扩展 */
 
-	private LoadData loadData;		// TODO
+	private LoadData loadData;		// TODO load data in file
 
 	public RouteResultsetNode(String name, int sqlType, String srcStatement) {
 		this.name = name;
@@ -59,7 +60,6 @@ public final class RouteResultsetNode implements Serializable , Comparable<Route
 		return canRunInReadDB && autocommit && !hasBlanceFlag
 			|| canRunInReadDB && !autocommit && hasBlanceFlag;
 	}
-
 
 	public void setStatement(String statement) { this.statement = statement; }
 	public void setCanRunInReadDB(boolean canRunInReadDB) { this.canRunInReadDB = canRunInReadDB; }

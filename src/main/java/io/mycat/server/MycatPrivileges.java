@@ -28,30 +28,19 @@ import io.mycat.server.config.node.MycatConfig;
 import io.mycat.server.config.node.UserConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.util.Map;
 import java.util.Set;
 
-/**
- * @author mycat
- */
+/* 权限验证 */
 public class MycatPrivileges implements FrontendPrivileges {
-	/**
-	 * 无需每次建立连接都new实例。
-	 */
-	private static MycatPrivileges instance = new MycatPrivileges();
+    private static final Logger ALARM = LoggerFactory.getLogger("alarm");
+    private MycatPrivileges() { super(); }
 
-    private static final Logger ALARM = LoggerFactory
-            .getLogger("alarm");
+    /* 单例 */
+    private static MycatPrivileges instance = new MycatPrivileges();
+    public static MycatPrivileges instance() { return instance; }
+    
 
-    public static MycatPrivileges instance() {
-    	return instance;
-    }
-    
-    private MycatPrivileges() {
-    	super();
-    }
-    
     @Override
     public boolean schemaExists(String schema) {
         MycatConfig conf = MycatServer.getInstance().getConfig();
@@ -65,8 +54,12 @@ public class MycatPrivileges implements FrontendPrivileges {
         if (quarantineHosts.containsKey(host)) {
             boolean rs = quarantineHosts.get(host).contains(user);
             if (!rs) {
-                ALARM.error(new StringBuilder().append(Alarms.QUARANTINE_ATTACK).append("[host=").append(host)
-                        .append(",user=").append(user).append(']').toString());
+                ALARM.error(
+                        new StringBuilder().
+                                append(Alarms.QUARANTINE_ATTACK).
+                                append("[host=").append(host).
+                                append(",user=").append(user).
+                                append(']').toString());
             }
             return rs;
         } else {

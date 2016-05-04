@@ -23,17 +23,15 @@
  */
 package io.mycat.server.packet.util;
 
-/**
- * @author mycat
- */
+/* mysql协议中的值 */
 public class BindValue {
 
-    public boolean isNull; /* NULL indicator */
-    public boolean isLongData; /* long data indicator */
-    public boolean isSet; /* has this parameter been set */
+    public boolean isNull;      /* NULL indicator */
+    public boolean isLongData;  /* long data indicator */
+    public boolean isSet;       /* has this parameter been set */
 
-    public long length; /* Default length of data */
-    public int type; /* data type */
+    public long length;         /* Default length of data */
+    public int type;            /* data type */
     public byte scale;
 
     /** 数据值 **/

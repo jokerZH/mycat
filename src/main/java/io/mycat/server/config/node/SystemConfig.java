@@ -24,7 +24,6 @@
 package io.mycat.server.config.node;
 
 import io.mycat.server.Isolations;
-
 import java.io.File;
 import java.io.IOException;
 
@@ -100,18 +99,18 @@ public final class SystemConfig {
 	private long dataNodeHeartbeatPeriod;
 
 	/* cluster */
-	private String clusterHeartbeatUser;
-	private String clusterHeartbeatPass;
-	private long clusterHeartbeatPeriod;
-	private long clusterHeartbeatTimeout;
-	private int clusterHeartbeatRetry;
+	private String clusterHeartbeatUser;		/* 集群 用于心跳检测的用户名 */
+	private String clusterHeartbeatPass;		/* 集群 用户心跳检测的密码 */
+	private long clusterHeartbeatPeriod;		/* 集群 心跳周期 */
+	private long clusterHeartbeatTimeout;		/* 集群 心跳超时时间 */
+	private int clusterHeartbeatRetry;			/* 集群 心跳超时重试次数 */
 
 	/* mysql */
-	private int txIsolation;			/* 隔离级别 */
-	private int parserCommentVersion;	/* TODO */
-	private int sqlRecordCount;			/* sql备份的个数 */
-	private int defaultMaxLimit = DEFAULT_MAX_LIMIT;
-	private String charset;						/* 使用的字符集 */
+	private int txIsolation;						/* 隔离级别 */
+	private int parserCommentVersion;				/* TODO */
+	private int sqlRecordCount;						/* sql备份的个数 */
+	private int defaultMaxLimit = DEFAULT_MAX_LIMIT;/* TODO */
+	private String charset;							/* 使用的字符集 */
 
 	/* sequence */
 	private int sequnceHandlerType = SEQUENCEHANDLER_LOCALFILE;

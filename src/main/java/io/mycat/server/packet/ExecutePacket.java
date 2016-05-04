@@ -82,13 +82,13 @@ import java.io.UnsupportedEncodingException;
  */
 public class ExecutePacket extends MySQLPacket {
 
-    public byte code;
-    public long statementId;
-    public byte flags;
-    public long iterationCount;
-    public byte[] nullBitMap;
-    public byte newParameterBoundFlag;
-    public BindValue[] values;
+    public byte code;                   /* COM_EXECUTE */
+    public long statementId;            /* ps id */
+    public byte flags;                  /* TODO */
+    public long iterationCount;         /* TODO */
+    public byte[] nullBitMap;           /* 指出那些parameter是null的 */
+    public byte newParameterBoundFlag;  /* TODO */
+    public BindValue[] values;          /* 各个parameter的值 */
     protected PreparedStatement pstmt;
 
     public ExecutePacket(PreparedStatement pstmt) {
@@ -136,7 +136,6 @@ public class ExecutePacket extends MySQLPacket {
 
     @Override
     public int calcPacketSize() {
-        
         return 0;
     }
 

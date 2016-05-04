@@ -16,7 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * 表示连接,可以是客户端连接，也可以是服务端连接
+ * 表示连接 负责读取一个完整的数据包
  */
 public abstract class Connection implements ClosableConnection{
 	public static Logger LOGGER = LoggerFactory.getLogger(Connection.class);

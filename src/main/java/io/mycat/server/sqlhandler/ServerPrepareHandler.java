@@ -35,15 +35,12 @@ import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * @author mycat
- */
+/* 处理和 preparestatement 相关的操作  */
 public class ServerPrepareHandler implements FrontendPrepareHandler {
-
-    private MySQLFrontConnection source;
-    private volatile long pstmtId;
-    private Map<String, PreparedStatement> pstmtForSql;
-    private Map<Long, PreparedStatement> pstmtForId;
+    private MySQLFrontConnection source;                /* 对应的客户端连接 */
+    private volatile long pstmtId;                      /* preparedStatement id 分配器的counter */
+    private Map<String/*sql*/, PreparedStatement> pstmtForSql;
+    private Map<Long/*ps id*/, PreparedStatement> pstmtForId;
 
     public ServerPrepareHandler(MySQLFrontConnection source) {
         this.source = source;
@@ -66,9 +63,11 @@ public class ServerPrepareHandler implements FrontendPrepareHandler {
     @Override
     public void execute(byte[] data) {
         long pstmtId = ByteUtil.readUB4(data, 5);
+
         PreparedStatement pstmt = null;
         if ((pstmt = pstmtForSql.get(pstmtId)) == null) {
             source.writeErrMessage(ErrorCode.ER_ERROR_WHEN_EXECUTING_COMMAND, "Unknown pstmtId when executing.");
+
         } else {
             ExecutePacket packet = new ExecutePacket(pstmt);
             try {
@@ -77,6 +76,7 @@ public class ServerPrepareHandler implements FrontendPrepareHandler {
                 source.writeErrMessage(ErrorCode.ER_ERROR_WHEN_EXECUTING_COMMAND, e.getMessage());
                 return;
             }
+            /* FIXME */
         }
     }
 

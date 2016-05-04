@@ -31,11 +31,10 @@ import io.mycat.server.packet.FieldPacket;
 import io.mycat.server.packet.PreparedOkPacket;
 import io.mycat.server.packet.util.PreparedStatement;
 
-/**
- * @author mycat
- */
+/* proxy向客户端发送的回应 */
 public class PreparedStmtResponse {
 
+    /* 客户端使用preparedStatement的时候,对prepare包的回应 */
     public static void response(PreparedStatement pstmt, MySQLFrontConnection c) {
         byte packetId = 0;
 
@@ -45,8 +44,8 @@ public class PreparedStmtResponse {
         preparedOk.statementId = pstmt.getId();
         preparedOk.columnsNumber = pstmt.getColumnsNumber();
         preparedOk.parametersNumber = pstmt.getParametersNumber();
-        BufferArray bufferArray = NetSystem.getInstance().getBufferPool()
-				.allocateArray();
+        BufferArray bufferArray = NetSystem.getInstance().getBufferPool().allocateArray();
+
         // write parameter field packet
         int parametersNumber = preparedOk.parametersNumber;
         if (parametersNumber > 0) {

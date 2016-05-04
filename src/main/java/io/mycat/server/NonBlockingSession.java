@@ -46,11 +46,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /* TODO */
 public class NonBlockingSession{
-	public static final Logger LOGGER = LoggerFactory
-			.getLogger(NonBlockingSession.class);
+	public static final Logger LOGGER = LoggerFactory.getLogger(NonBlockingSession.class);
 
-	private final MySQLFrontConnection source;
-	private final ConcurrentHashMap<RouteResultsetNode, BackendConnection> target;
+	private final MySQLFrontConnection source;					/* 客户端连接 */
+	private final ConcurrentHashMap<RouteResultsetNode, BackendConnection> target;	/* 路由结果和后端连接的对应关系 */
+
 	// life-cycle: each sql execution
 	private volatile SingleNodeHandler singleNodeHandler;
 	private volatile MultiNodeQueryHandler multiNodeHandler;
@@ -61,8 +61,7 @@ public class NonBlockingSession{
 
 	public NonBlockingSession(MySQLFrontConnection source) {
 		this.source = source;
-		this.target = new ConcurrentHashMap<RouteResultsetNode, BackendConnection>(
-				2, 0.75f);
+		this.target = new ConcurrentHashMap<RouteResultsetNode, BackendConnection>(2, 0.75f);
 		multiNodeCoordinator = new MultiNodeCoordinator(this);
 		commitHandler = new CommitNodeHandler(this);
 	}

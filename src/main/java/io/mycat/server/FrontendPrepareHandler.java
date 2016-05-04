@@ -23,17 +23,12 @@
  */
 package io.mycat.server;
 
-/**
- * SQL预处理处理器
- * 
- * @author mycat
- */
+/* SQL预处理处理器 */
 public interface FrontendPrepareHandler {
-
+    /* 初始化 preparedStatement调用 */
     void prepare(String sql);
-
+    /* 执行preparedStatement调用 */
     void execute(byte[] data);
-
+    /* TODO */
     void close();
-
 }

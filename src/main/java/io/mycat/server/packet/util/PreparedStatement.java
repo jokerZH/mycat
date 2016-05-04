@@ -23,16 +23,14 @@
  */
 package io.mycat.server.packet.util;
 
-/**
- * @author mycat
- */
+/* 表示一个逻辑的prepareStatement */
 public class PreparedStatement {
+    private long id;                /* ps id */
+    private String statement;       /* sql string */
+    private int columnsNumber;      /* 字段名个数 */
+    private int parametersNumber;   /* ps中的参数个数 */
+    private int[] parametersType;   /* ps中的参数类型 */
 
-    private long id;
-    private String statement;
-    private int columnsNumber;
-    private int parametersNumber;
-    private int[] parametersType;
 
     public PreparedStatement(long id, String statement, int columnsNumber, int parametersNumber) {
         this.id = id;
@@ -42,24 +40,9 @@ public class PreparedStatement {
         this.parametersType = new int[parametersNumber];
     }
 
-    public long getId() {
-        return id;
-    }
-
-    public String getStatement() {
-        return statement;
-    }
-
-    public int getColumnsNumber() {
-        return columnsNumber;
-    }
-
-    public int getParametersNumber() {
-        return parametersNumber;
-    }
-
-    public int[] getParametersType() {
-        return parametersType;
-    }
-
+    public long getId() { return id; }
+    public String getStatement() { return statement; }
+    public int getColumnsNumber() { return columnsNumber; }
+    public int getParametersNumber() { return parametersNumber; }
+    public int[] getParametersType() { return parametersType; }
 }

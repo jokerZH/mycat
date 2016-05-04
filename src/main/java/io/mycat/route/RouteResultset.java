@@ -33,22 +33,18 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/**
- * @author mycat
- */
+/* 路由结果集合 */
 public final class RouteResultset implements Serializable {
-    private String statement; // 原始语句
-    private final int sqlType;
-    private RouteResultsetNode[] nodes; // 路由结果节点
+    private String statement;           /* 原始sql语句 */
+    private final int sqlType;          /* sql类型*/
+    private RouteResultsetNode[] nodes; /* 路由结果节点 */
 
-    private int limitStart;
-    private boolean cacheAble;
-    // used to store table's ID->datanodes cache
-    // format is table.primaryKey
-    private String primaryKey;
-    // limit output total
-    private int limitSize;
-    private SQLMerge sqlMerge;
+    private int limitStart;             /* TODO limit start in select sql */
+    private int limitSize;              /* TODO limit size in select sql */
+    private boolean cacheAble;          /* TODO */
+
+    private String primaryKey;          /* tableName.primerKey */
+    private SQLMerge sqlMerge;          /* TODO */
 
     private boolean callStatement = false; // 处理call关键字
 

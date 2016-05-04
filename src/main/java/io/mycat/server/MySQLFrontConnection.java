@@ -28,12 +28,12 @@ import java.util.Set;
 
 /* 客户端连接 */
 public class MySQLFrontConnection extends GenalMySQLConnection {
-	protected FrontendPrivileges privileges;
+	protected FrontendPrivileges privileges;                /* 权限相关,如用户能操作哪些scheme等 */
 
-	protected FrontendPrepareHandler prepareHandler;
-	protected LoadDataInfileHandler loadDataInfileHandler;
-	private final NonBlockingSession session;
-	private boolean readOnlyUser = false;
+	protected FrontendPrepareHandler prepareHandler;        /* 客户端发起preparedStatement的时候使用 */
+	protected LoadDataInfileHandler loadDataInfileHandler;  /* TODO */
+	private final NonBlockingSession session;               /* TODO */
+	private boolean readOnlyUser = false;                   /* 只读的客户端连接 */
 
 	/* 返回服务端的能力flag */
 	protected int getServerCapabilities() {
@@ -43,11 +43,10 @@ public class MySQLFrontConnection extends GenalMySQLConnection {
 		flag |= Capabilities.CLIENT_LONG_FLAG;
 		flag |= Capabilities.CLIENT_CONNECT_WITH_DB;
 		// flag |= Capabilities.CLIENT_NO_SCHEMA;
-		boolean usingCompress = MycatServer.getInstance().getConfig()
-				.getSystem().getUseCompression() == 1;
-		if (usingCompress) {
-			flag |= Capabilities.CLIENT_COMPRESS;
-		}
+
+		boolean usingCompress = MycatServer.getInstance().getConfig().getSystem().getUseCompression() == 1;
+		if (usingCompress) { flag |= Capabilities.CLIENT_COMPRESS; }
+
 		flag |= Capabilities.CLIENT_ODBC;
 		flag |= Capabilities.CLIENT_LOCAL_FILES;
 		flag |= Capabilities.CLIENT_IGNORE_SPACE;
@@ -58,6 +57,7 @@ public class MySQLFrontConnection extends GenalMySQLConnection {
 		flag |= Capabilities.CLIENT_TRANSACTIONS;
 		// flag |= ServerDefs.CLIENT_RESERVED;
 		flag |= Capabilities.CLIENT_SECURE_CONNECTION;
+
 		return flag;
 	}
 
@@ -362,19 +362,21 @@ public class MySQLFrontConnection extends GenalMySQLConnection {
 		}
 	}
 
+    /* 处理客户端发起preparedStatement的请求 */
 	public void stmtPrepare(byte[] data) {
 		if (prepareHandler != null) {
 			// 取得语句
 			MySQLMessage mm = new MySQLMessage(data);
 			mm.position(5);
 			String sql = null;
+
 			try {
 				sql = mm.readString(charset);
 			} catch (UnsupportedEncodingException e) {
-				writeErrMessage(ErrorCode.ER_UNKNOWN_CHARACTER_SET,
-						"Unknown charset '" + charset + "'");
+				writeErrMessage(ErrorCode.ER_UNKNOWN_CHARACTER_SET, "Unknown charset '" + charset + "'");
 				return;
 			}
+
 			if (sql == null || sql.length() == 0) {
 				writeErrMessage(ErrorCode.ER_NOT_ALLOWED_COMMAND, "Empty SQL");
 				return;
@@ -383,26 +385,25 @@ public class MySQLFrontConnection extends GenalMySQLConnection {
 			// 执行预处理
 			prepareHandler.prepare(sql);
 		} else {
-			writeErrMessage(ErrorCode.ER_UNKNOWN_COM_ERROR,
-					"Prepare unsupported!");
+			writeErrMessage(ErrorCode.ER_UNKNOWN_COM_ERROR, "Prepare unsupported!");
 		}
 	}
 
+    /* 处理客户端执行parparedStatement的请求 */
 	public void stmtExecute(byte[] data) {
 		if (prepareHandler != null) {
 			prepareHandler.execute(data);
 		} else {
-			writeErrMessage(ErrorCode.ER_UNKNOWN_COM_ERROR,
-					"Prepare unsupported!");
+			writeErrMessage(ErrorCode.ER_UNKNOWN_COM_ERROR, "Prepare unsupported!");
 		}
 	}
 
+    /* 关闭preapreDstatement的请求 */
 	public void stmtClose(byte[] data) {
 		if (prepareHandler != null) {
 			prepareHandler.close();
 		} else {
-			writeErrMessage(ErrorCode.ER_UNKNOWN_COM_ERROR,
-					"Prepare unsupported!");
+			writeErrMessage(ErrorCode.ER_UNKNOWN_COM_ERROR, "Prepare unsupported!");
 		}
 	}
 

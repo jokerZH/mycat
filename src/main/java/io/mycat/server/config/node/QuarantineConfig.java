@@ -27,9 +27,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-/* 隔离区配置定义 TODO */
+/* 主机和用户名的对应关系 */
 public final class QuarantineConfig {
-    private final Map<String, Set<String>> hosts;
+    private final Map<String/*主机名*/, Set<String/*用户名*/>> hosts;
 
     public QuarantineConfig() { hosts = new HashMap<String, Set<String>>(); }
     public Map<String, Set<String>> getHosts() { return hosts; }

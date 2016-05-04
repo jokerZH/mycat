@@ -51,14 +51,11 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.Set;
 
-/**
- * @author mycat
- */
-public class SingleNodeHandler implements ResponseHandler, Terminatable,
-		LoadDataResponseHandler {
-	public static final Logger LOGGER = LoggerFactory
-			.getLogger(SingleNodeHandler.class);
-	private final RouteResultsetNode node;
+/* TODO */
+public class SingleNodeHandler implements ResponseHandler, Terminatable, LoadDataResponseHandler {
+	public static final Logger LOGGER = LoggerFactory.getLogger(SingleNodeHandler.class);
+
+	private final RouteResultsetNode node;			/* 路由结果 */
 	private final RouteResultset rrs;
 	private final NonBlockingSession session;
 	// only one thread access at one time no need lock

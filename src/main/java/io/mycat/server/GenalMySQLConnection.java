@@ -14,7 +14,7 @@ import java.nio.channels.SocketChannel;
 import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/*客户端连接 */
+/*客户端连接, 增加和mysql相关的功能 */
 public class GenalMySQLConnection extends Connection {
 	public static final int maxPacketSize = 16 * 1024 * 1024;
 	protected final AtomicBoolean isQuit = new AtomicBoolean(false);
@@ -114,9 +114,8 @@ public class GenalMySQLConnection extends Connection {
 
 	/* 设置字符集 */
 	public boolean setCharset(String charset) {
-		
-		//修复PHP字符集设置错误, 如： set names 'utf8'
-		if ( charset != null ) {			
+		if ( charset != null ) {
+			//修复PHP字符集设置错误, 如： set names 'utf8'
 			charset = charset.replace("'", "");
 		}
 		
@@ -139,7 +138,7 @@ public class GenalMySQLConnection extends Connection {
 		}
 	}
 
-
+	/* 获得密码对应的数据内容 */
 	private static byte[] passwd(String pass, HandshakePacket hs) throws NoSuchAlgorithmException {
 		if (pass == null || pass.length() == 0) {
 			return null;
