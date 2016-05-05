@@ -32,7 +32,7 @@ import java.util.Map;
 /* TODO */
 public class SQLMerge implements Serializable {
 	private LinkedHashMap<String, Integer> orderByCols;	/* order的字段名, 有现有顺序? */
-	private HavingCols havingCols;						/* TODO */
+	private HavingCols havingCols;						/* sql中存在的字段名 */
 	private Map<String, Integer> mergeCols;				/* TODO */
 	private String[] groupByCols;						/* group by 的字段名 */
 	private boolean hasAggrColumn;						/* TODO */

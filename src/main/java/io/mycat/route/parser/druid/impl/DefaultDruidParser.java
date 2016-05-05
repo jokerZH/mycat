@@ -26,15 +26,11 @@ import java.util.Map;
  * 主要通过visitor解析和statement解析：有些类型的SQLStatement通过visitor解析足够了，
  *  有些只能通过statement解析才能得到所有信息
  *  有些需要通过两种方式解析才能得到完整信息
- * @author wang.dw
- *
  */
 public class DefaultDruidParser implements DruidParser {
-	protected static final Logger LOGGER = LoggerFactory
-            .getLogger(DefaultDruidParser.class);
-	/**
-	 * 解析得到的结果
-	 */
+	protected static final Logger LOGGER = LoggerFactory.getLogger(DefaultDruidParser.class);
+
+	/* 解析得到的结果 */
 	protected DruidShardingParseInfo ctx;
 	
 	private Map<String,String> tableAliasMap = new HashMap<String,String>();

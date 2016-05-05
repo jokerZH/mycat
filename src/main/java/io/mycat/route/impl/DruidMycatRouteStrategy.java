@@ -22,36 +22,33 @@ import java.util.Iterator;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
+/* 负责路由功能 */
 public class DruidMycatRouteStrategy extends AbstractRouteStrategy {
 	private static final Logger LOGGER = LoggerFactory.getLogger(DruidMycatRouteStrategy.class);
 	
 	@Override
-	public RouteResultset routeNormalSqlWithAST(SchemaConfig schema,
-			String stmt, RouteResultset rrs, String charset,
-			LayerCachePool cachePool) throws SQLNonTransientException {
+	public RouteResultset routeNormalSqlWithAST(SchemaConfig schema, String stmt, RouteResultset rrs, String charset, LayerCachePool cachePool) throws SQLNonTransientException {
 		SQLStatementParser parser =null;
-		if(schema.isNeedSupportMultiDBType())
-		{
+		if(schema.isNeedSupportMultiDBType()) {
 			parser = new MycatStatementParser(stmt);
-		} else
-		{
-			parser = new MySqlStatementParser(stmt);   //只有mysql时只支持mysql语法
+		}else {
+			//只有mysql时只支持mysql语法
+			parser = new MySqlStatementParser(stmt);
 		}
 
 		MycatSchemaStatVisitor visitor = null;
 		SQLStatement statement;
-		//解析出现问题统一抛SQL语法错误
 		try {
 			statement = parser.parseStatement();
             visitor = new MycatSchemaStatVisitor();
 		} catch (Exception t) {
+			//解析出现问题统一抛SQL语法错误
 	        LOGGER.error("DruidMycatRouteStrategyError", t);
 			throw new SQLSyntaxErrorException(t);
 		}
 
-		//检验unsupported statement
+		// 检验unsupported statement
 		checkUnSupportedStatement(statement);
-
 
         DruidParser druidParser = DruidParserFactory.create(schema,statement,visitor);
 		druidParser.parser(schema, rrs, statement, stmt,cachePool,visitor);
@@ -105,14 +102,10 @@ public class DruidMycatRouteStrategy extends AbstractRouteStrategy {
 		return false;
 	}
 	
-	/**
-	 * 检验不支持的SQLStatement类型 ：不支持的类型直接抛SQLSyntaxErrorException异常
-	 * @param statement
-	 * @throws SQLSyntaxErrorException
-	 */
+	/* 检验不支持的SQLStatement类型 ：不支持的类型直接抛SQLSyntaxErrorException异常 */
 	private void checkUnSupportedStatement(SQLStatement statement) throws SQLSyntaxErrorException {
-		//不支持replace语句
 		if(statement instanceof MySqlReplaceStatement) {
+			//不支持replace语句
 			throw new SQLSyntaxErrorException(" ReplaceStatement can't be supported,use insert into ...on duplicate key update... instead ");
 		}
 	}

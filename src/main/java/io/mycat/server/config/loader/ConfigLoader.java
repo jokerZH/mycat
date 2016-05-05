@@ -54,5 +54,4 @@ public interface ConfigLoader {
 	CharsetConfig getCharsetConfigs();
 	HostIndexConfig getHostIndexConfig();
 	SequenceConfig getSequenceConfig();
-
 }

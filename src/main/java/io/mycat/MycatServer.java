@@ -62,11 +62,11 @@ public class MycatServer {
 	private static final MycatServer INSTANCE = new MycatServer();
 	private static final Logger LOGGER = LoggerFactory.getLogger("MycatServer");
 
-	private final RouteService routerService;
-	private final CacheService cacheService;
+	private final RouteService routerService;				/* 负责路由处理 */
+	private final CacheService cacheService;				/* kv存储 */
 	private AsynchronousChannelGroup[] asyncChannelGroups;
 	private volatile int channelIndex = 0;
-	private final MyCATSequnceProcessor sequnceProcessor = new MyCATSequnceProcessor();
+	private final MyCATSequnceProcessor sequnceProcessor = new MyCATSequnceProcessor();	/* 处理sequence,不过是异步执行的 */
 	private final DynaClassLoader catletClassLoader;
 	private final SQLInterceptor sqlInterceptor;
 	private final AtomicLong xaIDInc = new AtomicLong();
@@ -104,17 +104,9 @@ public class MycatServer {
 		this.startupTime = TimeUtil.currentTimeMillis();
 	}
 
-	public DynaClassLoader getCatletClassLoader() {
-		return catletClassLoader;
-	}
-
-	public MyCATSequnceProcessor getSequnceProcessor() {
-		return sequnceProcessor;
-	}
-
-	public SQLInterceptor getSqlInterceptor() {
-		return sqlInterceptor;
-	}
+	public DynaClassLoader getCatletClassLoader() { return catletClassLoader; }
+	public MyCATSequnceProcessor getSequnceProcessor() { return sequnceProcessor; }
+	public SQLInterceptor getSqlInterceptor() { return sqlInterceptor; }
 
 	public String genXATXID() {
 		long seq = this.xaIDInc.incrementAndGet();
@@ -126,8 +118,7 @@ public class MycatServer {
 				seq = xaIDInc.incrementAndGet();
 			}
 		}
-		return "'Mycat." + this.getConfig().getSystem().getMycatNodeId() + "."
-				+ seq + "'";
+		return "'Mycat." + this.getConfig().getSystem().getMycatNodeId() + "." + seq + "'";
 	}
 
 	/**
@@ -241,35 +232,12 @@ public class MycatServer {
 		};
 	}
 
-
-
-	public RouteService getRouterService() {
-		return routerService;
-	}
-
-	public CacheService getCacheService() {
-		return cacheService;
-	}
-
-	public RouteService getRouterservice() {
-		return routerService;
-	}
-
-	public long getStartupTime() {
-		return startupTime;
-	}
-
-	public boolean isOnline() {
-		return isOnline.get();
-	}
-
-	public void offline() {
-		isOnline.set(false);
-	}
-
-	public void online() {
-		isOnline.set(true);
-	}
+	public CacheService getCacheService() { return cacheService; }
+	public RouteService getRouterservice() { return routerService; }
+	public long getStartupTime() { return startupTime; }
+	public boolean isOnline() { return isOnline.get(); }
+	public void offline() { isOnline.set(false); }
+	public void online() { isOnline.set(true); }
 
 	// 系统时间定时更新任务
 	private TimerTask updateTime() {

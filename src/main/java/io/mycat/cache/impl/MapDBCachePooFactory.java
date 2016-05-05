@@ -25,9 +25,7 @@ package io.mycat.cache.impl;
 
 import io.mycat.cache.CachePool;
 import io.mycat.cache.CachePoolFactory;
-
 import java.util.concurrent.TimeUnit;
-
 import org.mapdb.DB;
 import org.mapdb.DBMaker;
 import org.mapdb.HTreeMap;

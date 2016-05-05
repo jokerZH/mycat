@@ -28,15 +28,8 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * 递增序列号处理器
- *
- * @author <a href="http://www.micmiu.com">Michael</a>
- * @time Create on 2013-12-29 下午10:42:39
- * @version 1.0
- */
+/* 递增序列号处理器 */
 public abstract class IncrSequenceHandler extends SequenceHandler {
-
 	public static final Logger logger = LoggerFactory.getLogger(IncrSequenceHandler.class);
 
 	public static final String FILE_NAME = "sequence_conf.properties";
@@ -46,10 +39,13 @@ public abstract class IncrSequenceHandler extends SequenceHandler {
 	public static final String KEY_MAX_NAME = ".MAXID";// 10000
 	public static final String KEY_CUR_NAME = ".CURID";// 888
 
+	/* 获得当前的值 */
 	public abstract Map<String, String> getParaValMap(String prefixName);
 
+	/* 更新当前id */
 	public abstract Boolean updateCURIDVal(String prefixName, Long val);
 
+	/* 获得下一个区间 */
 	public abstract Boolean fetchNextPeriod(String prefixName);
 
 	@Override

@@ -40,7 +40,7 @@ public final class RouteResultsetNode implements Serializable , Comparable<Route
 
 	private int limitStart;			/* select语句增加的限制,限制结果大小	*/
 	private int limitSize;			/* 同上 */
-	private int totalNodeSize =0; 	/* TODO 方便后续jdbc批量获取扩展 */
+	private int totalNodeSize =0; 	/* 当前routeResult属于的rr集合的rr个数 */
 
 	private LoadData loadData;		// TODO load data in file
 

@@ -160,7 +160,6 @@ public final class ServerParseShow {
 	}
 
 	// SHOW TABLE
-
 	public static int tableCheck(String stmt, int offset) {
 
 		// strict match

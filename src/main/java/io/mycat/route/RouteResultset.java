@@ -39,54 +39,20 @@ public final class RouteResultset implements Serializable {
     private final int sqlType;          /* sql类型*/
     private RouteResultsetNode[] nodes; /* 路由结果节点 */
 
-    private int limitStart;             /* TODO limit start in select sql */
-    private int limitSize;              /* TODO limit size in select sql */
-    private boolean cacheAble;          /* TODO */
+    private int limitStart;             /* limit start in select sql */
+    private int limitSize;              /* limit size in select sql -1 if no limit */
 
     private String primaryKey;          /* tableName.primerKey */
-    private SQLMerge sqlMerge;          /* TODO */
+    private SQLMerge sqlMerge;          /* 感觉跟select的结果合并相关的东西 */
 
-    private boolean callStatement = false; // 处理call关键字
+    private boolean cacheAble;                  /* TODO */
+    private boolean callStatement = false;      /* TODO 处理call关键字 */
+    private boolean globalTableFlag = false;    /* 是否为全局表，只有在insert、update、delete、ddl里会判断并修改。默认不是全局表，用于修正全局表修改数据的反馈 */
+    private boolean isFinishedRoute = false;    /* 是否完成了路由 */
+    private boolean autocommit = true;          /* 是否自动提交 */
+    private boolean isLoadData=false;           /* 是否是load data in file命令 */
+    private Boolean canRunInReadDB;             /* 是否可以在从库运行 */
 
-    // 是否为全局表，只有在insert、update、delete、ddl里会判断并修改。默认不是全局表，用于修正全局表修改数据的反馈。
-    private boolean globalTableFlag = false;
-
-    //是否完成了路由
-    private boolean isFinishedRoute = false;
-
-    //是否自动提交，此属性主要用于记录ServerConnection上的autocommit状态
-    private boolean autocommit = true;
-
-    private boolean isLoadData=false;
-
-    //是否可以在从库运行,此属性主要供RouteResultsetNode获取
-    private Boolean canRunInReadDB;
-
-    public boolean isLoadData()
-    {
-        return isLoadData;
-    }
-
-    public void setLoadData(boolean isLoadData)
-    {
-        this.isLoadData = isLoadData;
-    }
-
-    public boolean isFinishedRoute() {
-        return isFinishedRoute;
-    }
-
-    public void setFinishedRoute(boolean isFinishedRoute) {
-        this.isFinishedRoute = isFinishedRoute;
-    }
-
-    public boolean isGlobalTable() {
-        return globalTableFlag;
-    }
-
-    public void setGlobalTable(boolean globalTableFlag) {
-        this.globalTableFlag = globalTableFlag;
-    }
 
     public RouteResultset(String stmt, int sqlType) {
         this.statement = stmt;
@@ -102,8 +68,8 @@ public final class RouteResultset implements Serializable {
         }
     }
 
+    /* 如果单个routeResult没有配置limitStart limitSize,*/
     public void copyLimitToNodes() {
-
         if(nodes!=null)
         {
             for (RouteResultsetNode node : nodes)
@@ -114,37 +80,15 @@ public final class RouteResultset implements Serializable {
                     node.setLimitSize(limitSize);
                 }
             }
-
         }
-    }
-
-
-    public SQLMerge getSqlMerge() {
-        return sqlMerge;
-    }
-
-    public boolean isCacheAble() {
-        return cacheAble;
-    }
-
-    public void setCacheAble(boolean cacheAble) {
-        this.cacheAble = cacheAble;
     }
 
     public boolean needMerge() {
         return limitSize > 0 || sqlMerge != null;
     }
 
-    public int getSqlType() {
-        return sqlType;
-    }
-
     public boolean isHasAggrColumn() {
         return (sqlMerge != null) && sqlMerge.isHasAggrColumn();
-    }
-
-    public int getLimitStart() {
-        return limitStart;
     }
 
     public String[] getGroupByCols() {
@@ -162,34 +106,15 @@ public final class RouteResultset implements Serializable {
         return (sqlMerge != null) ? sqlMerge.getMergeCols() : null;
     }
 
-    public void setLimitStart(int limitStart) {
-        this.limitStart = limitStart;
-    }
-
-    public String getPrimaryKey() {
-        return primaryKey;
-    }
-
-    public boolean hasPrimaryKeyToCache() {
-        return primaryKey != null;
-    }
-
     public void setPrimaryKey(String primaryKey) {
         if (!primaryKey.contains(".")) {
-            throw new java.lang.IllegalArgumentException(
-                    "must be table.primarykey fomat :" + primaryKey);
+            throw new java.lang.IllegalArgumentException("must be table.primarykey fomat :" + primaryKey);
         }
         this.primaryKey = primaryKey;
     }
 
-    /**
-     * return primary key items ,first is table name ,seconds is primary key
-     *
-     * @return
-     */
-    public String[] getPrimaryKeyItems() {
-        return primaryKey.split("\\.");
-    }
+    /* return primary key items ,first is table name ,seconds is primary key */
+    public String[] getPrimaryKeyItems() { return primaryKey.split("\\."); }
 
     public void setOrderByCols(LinkedHashMap<String, Integer> orderByCols) {
         if (orderByCols != null && !orderByCols.isEmpty()) {
@@ -218,15 +143,6 @@ public final class RouteResultset implements Serializable {
 
     public LinkedHashMap<String, Integer> getOrderByCols() {
         return (sqlMerge != null) ? sqlMerge.getOrderByCols() : null;
-
-    }
-
-    public String getStatement() {
-        return statement;
-    }
-
-    public RouteResultsetNode[] getNodes() {
-        return nodes;
     }
 
     public void setNodes(RouteResultsetNode[] nodes) {
@@ -237,38 +153,21 @@ public final class RouteResultset implements Serializable {
             {
                 node.setTotalNodeSize(nodeSize);
             }
-
         }
         this.nodes = nodes;
     }
 
-    /**
-     * @return -1 if no limit
-     */
-    public int getLimitSize() {
-        return limitSize;
-    }
-
-    public void setLimitSize(int limitSize) {
-        this.limitSize = limitSize;
-    }
-
-    public void setStatement(String statement) {
-        this.statement = statement;
-    }
-
-    public boolean isCallStatement() {
-        return callStatement;
-    }
-
-    public void setCallStatement(boolean callStatement) {
-        this.callStatement = callStatement;
-    }
-
-    public void changeNodeSqlAfterAddLimit(SchemaConfig schemaConfig, String sourceDbType, String sql, int offset, int count, boolean isNeedConvert) {
+    /* 讲routerResult中的sql设置为增加limit之后的sql */
+    public void changeNodeSqlAfterAddLimit(
+            SchemaConfig schemaConfig,  /* 逻辑db */
+            String sourceDbType,        /* 后端类型 */
+            String sql,                 /* 增加limit之后的sql */
+            int offset,                 /* limit offset */
+            int count,                  /* limit count */
+            boolean isNeedConvert       /* TODO */
+    ) {
         if (nodes != null)
         {
-
             Map<String, String> dataNodeDbTypeMap = schemaConfig.getDataNodeDbTypeMap();
             Map<String, String> sqlMapCache = new HashMap<>();
             for (RouteResultsetNode node : nodes)
@@ -276,7 +175,8 @@ public final class RouteResultset implements Serializable {
                 String dbType = dataNodeDbTypeMap.get(node.getName());
                 if (sourceDbType.equalsIgnoreCase("mysql"))
                 {
-                    node.setStatement(sql);   //mysql之前已经加好limit
+                    //mysql之前已经加好limit
+                    node.setStatement(sql);
                 } else if (sqlMapCache.containsKey(dbType))
                 {
                     node.setStatement(sqlMapCache.get(dbType));
@@ -292,25 +192,7 @@ public final class RouteResultset implements Serializable {
                 node.setLimitStart(offset);
                 node.setLimitSize(count);
             }
-
-
         }
-    }
-
-    public boolean isAutocommit() {
-        return autocommit;
-    }
-
-    public void setAutocommit(boolean autocommit) {
-        this.autocommit = autocommit;
-    }
-
-    public Boolean getCanRunInReadDB() {
-        return canRunInReadDB;
-    }
-
-    public void setCanRunInReadDB(Boolean canRunInReadDB) {
-        this.canRunInReadDB = canRunInReadDB;
     }
 
 	public HavingCols getHavingCols() {
@@ -323,18 +205,44 @@ public final class RouteResultset implements Serializable {
 		}
 	}
 
+
+    public boolean isLoadData() { return isLoadData; }
+    public void setLoadData(boolean isLoadData)  { this.isLoadData = isLoadData; }
+    public boolean isFinishedRoute() { return isFinishedRoute; }
+    public void setFinishedRoute(boolean isFinishedRoute) { this.isFinishedRoute = isFinishedRoute; }
+    public boolean isGlobalTable() { return globalTableFlag; }
+    public void setGlobalTable(boolean globalTableFlag) { this.globalTableFlag = globalTableFlag; }
+    public SQLMerge getSqlMerge() { return sqlMerge; }
+    public boolean isCacheAble() { return cacheAble; }
+    public void setCacheAble(boolean cacheAble) { this.cacheAble = cacheAble; }
+    public int getSqlType() { return sqlType; }
+    public void setLimitStart(int limitStart) { this.limitStart = limitStart; }
+    public String getPrimaryKey() { return primaryKey; }
+    public String getStatement() { return statement; }
+    public RouteResultsetNode[] getNodes() { return nodes; }
+    public int getLimitSize() { return limitSize; }
+    public void setLimitSize(int limitSize) { this.limitSize = limitSize; }
+    public void setStatement(String statement) { this.statement = statement; }
+    public boolean isCallStatement() { return callStatement; }
+    public void setCallStatement(boolean callStatement) { this.callStatement = callStatement; }
+    public boolean isAutocommit() { return autocommit; }
+    public void setAutocommit(boolean autocommit) { this.autocommit = autocommit; }
+    public Boolean getCanRunInReadDB() { return canRunInReadDB; }
+    public void setCanRunInReadDB(Boolean canRunInReadDB) { this.canRunInReadDB = canRunInReadDB; }
+    public boolean hasPrimaryKeyToCache() { return primaryKey != null; }
+
+
     @Override
     public String toString() {
         StringBuilder s = new StringBuilder();
         s.append(statement).append(", route={");
         if (nodes != null) {
             for (int i = 0; i < nodes.length; ++i) {
-                s.append("\n ").append(FormatUtil.format(i + 1, 3));
-                s.append(" -> ").append(nodes[i]);
+                s.append("\n ");
+                s.append(FormatUtil.format(i + 1, 3)).append(" -> ").append(nodes[i]);
             }
         }
         s.append("\n}");
         return s.toString();
     }
-
 }

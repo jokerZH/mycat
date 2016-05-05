@@ -6,16 +6,13 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
+/* 根据时间在产生id */
 public class IncrSequenceTimeHandler extends SequenceHandler {
-	protected static final Logger LOGGER = LoggerFactory
-			.getLogger(IncrSequenceTimeHandler.class);
-
+	protected static final Logger LOGGER = LoggerFactory.getLogger(IncrSequenceTimeHandler.class);
 	private static final IncrSequenceTimeHandler instance = new IncrSequenceTimeHandler();
-	private static IdWorker workey = new IdWorker(0,0);
+	public static SequenceHandler getInstance() { return IncrSequenceTimeHandler.instance; }
 
-	public static SequenceHandler getInstance() {
-		return IncrSequenceTimeHandler.instance;
-	}
+	private IncrSequenceTimeHandler() { }
 
 	static{
 		SequenceConfig sequenceConfig = SequenceHandler.getConfig();
@@ -27,9 +24,8 @@ public class IncrSequenceTimeHandler extends SequenceHandler {
 		}
 	}
 
-	private IncrSequenceTimeHandler() {
-
-	}
+	private static IdWorker workey = new IdWorker(0,0);
+	public void setWorkey(IdWorker workey) { IncrSequenceTimeHandler.workey = workey; }
 
 	@Override
 	public long nextId(String prefixName) {
@@ -37,28 +33,19 @@ public class IncrSequenceTimeHandler extends SequenceHandler {
 	}
 
 
-	/**
-	* 64位ID (42(毫秒)+5(机器ID)+5(业务编码)+12(重复累加))
-	* @author sw
-	*/
+	/* 64位ID (42(毫秒)+5(机器ID)+5(业务编码)+12(重复累加)) */
 	static class IdWorker {
 		private final static long twepoch = 1288834974657L;
-		// 机器标识位数
-		private final static long workerIdBits = 5L;
-		// 数据中心标识位数
-		private final static long datacenterIdBits = 5L;
-		// 机器ID最大值 31
-		private final static long maxWorkerId = -1L ^ (-1L << workerIdBits);
-		// 数据中心ID最大值 31
-		private final static long maxDatacenterId = -1L ^ (-1L << datacenterIdBits);
-		// 毫秒内自增位
-		private final static long sequenceBits = 12L;
-		// 机器ID偏左移12位
-		private final static long workerIdShift = sequenceBits;
-		// 数据中心ID左移17位
-		private final static long datacenterIdShift = sequenceBits + workerIdBits;
-		// 时间毫秒左移22位
-		private final static long timestampLeftShift = sequenceBits + workerIdBits + datacenterIdBits;
+		private final static long workerIdBits = 5L;									/* 机器标识位数 */
+		private final static long maxWorkerId = -1L ^ (-1L << workerIdBits);			/* 机器ID最大值 31 */
+
+		private final static long datacenterIdBits = 5L;								/* 数据中心标识位数 */
+		private final static long maxDatacenterId = -1L ^ (-1L << datacenterIdBits);	/* 数据中心ID最大值 31 */
+
+		private final static long sequenceBits = 12L;									/* 毫秒内自增位 */
+		private final static long workerIdShift = sequenceBits; 						/* 机器ID偏左移12位 */
+		private final static long datacenterIdShift = sequenceBits + workerIdBits;		/* 数据中心ID左移17位 */
+		private final static long timestampLeftShift = sequenceBits + workerIdBits + datacenterIdBits;	/* 时间毫秒左移22位 */
 
 		private final static long sequenceMask = -1L ^ (-1L << sequenceBits);
 
@@ -79,6 +66,7 @@ public class IncrSequenceTimeHandler extends SequenceHandler {
 			this.datacenterId = datacenterId;
 		}
 
+		/* 返回下一个id */
 		public synchronized long nextId() {
 			long timestamp = timeGen();
 			if (timestamp < lastTimestamp) {
@@ -119,16 +107,5 @@ public class IncrSequenceTimeHandler extends SequenceHandler {
 		private long timeGen() {
 			return System.currentTimeMillis();
 		}
-
-
-
 	}
-
-	public void setWorkey(IdWorker workey) {
-		IncrSequenceTimeHandler.workey = workey;
-	}
-
-
-
-
 }

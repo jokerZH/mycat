@@ -31,20 +31,19 @@ import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class DefaultLayedCachePool implements LayerCachePool {
-	private static final Logger LOGGER = LoggerFactory
-			.getLogger(DefaultLayedCachePool.class);
-	protected Map<String, CachePool> allCaches = new HashMap<String, CachePool>();
-	protected final ReentrantLock lock = new ReentrantLock();
-	protected int defaultCacheSize;
-	protected int defaulExpiredSeconds;
-	protected static final String defaultCache = "default";
+	private static final Logger LOGGER = LoggerFactory.getLogger(DefaultLayedCachePool.class);
 	public static final String DEFAULT_CACHE_COUNT = "DEFAULT_CACHE_COUNT";
 	public static final String DEFAULT_CACHE_EXPIRE_SECONDS = "DEFAULT_CACHE_EXPIRE_SECONDS";
-	private final CachePoolFactory poolFactory;
-	private final String name;
+	protected final ReentrantLock lock = new ReentrantLock();
 
-	public DefaultLayedCachePool(String name, CachePoolFactory poolFactory,
-			int defaultCacheSize, int defaulExpiredSeconds) {
+	protected Map<String, CachePool> allCaches = new HashMap<String, CachePool>();	/* 缓存 */
+	protected int defaultCacheSize;									/* 默认缓存大小 */
+	protected int defaulExpiredSeconds;
+	protected static final String defaultCache = "default";			/* 当作为一级缓存用的时候使用 */
+	private final CachePoolFactory poolFactory;						/* 创建二级cache的工厂 */
+	private final String name;										/* 名字 */
+
+	public DefaultLayedCachePool(String name, CachePoolFactory poolFactory, int defaultCacheSize, int defaulExpiredSeconds) {
 		super();
 		this.name = name;
 		this.poolFactory = poolFactory;
@@ -52,6 +51,7 @@ public class DefaultLayedCachePool implements LayerCachePool {
 		this.defaulExpiredSeconds = defaulExpiredSeconds;
 	}
 
+	/* 获得一个cache */
 	private CachePool getCache(String cacheName) {
 		CachePool pool = allCaches.get(cacheName);
 		if (pool == null) {
@@ -59,8 +59,7 @@ public class DefaultLayedCachePool implements LayerCachePool {
 			try {
 				pool = allCaches.get(cacheName);
 				if (pool == null) {
-					pool = this.createChildCache(cacheName,
-							this.defaultCacheSize, this.defaulExpiredSeconds);
+					pool = this.createChildCache(cacheName, this.defaultCacheSize, this.defaulExpiredSeconds);
 				}
 
 			} finally {
@@ -70,31 +69,19 @@ public class DefaultLayedCachePool implements LayerCachePool {
 		return pool;
 	}
 
-	/**
-	 * create child cache at runtime
-	 * 
-	 * @param cacheName
-	 * @return
-	 */
-	public CachePool createChildCache(String cacheName, int size,
-			int expireSeconds) {
+	/* create child cache at runtime */
+	public CachePool createChildCache(String cacheName, int size, int expireSeconds) {
 		LOGGER.info("create child Cache: " + cacheName+ " for layered cache "+name+ ", size "+size+", expire seconds "+expireSeconds);
-		CachePool child = this.poolFactory.createCachePool(name + "."
-				+ cacheName, size, expireSeconds);
+
+		CachePool child = this.poolFactory.createCachePool(name + "." + cacheName, size, expireSeconds);
 		allCaches.put(cacheName, child);
 		return child;
 	}
 
 	@Override
-	public void putIfAbsent(Object key, Object value) {
-		putIfAbsent(defaultCache, key, value);
-
-	}
-
+	public void putIfAbsent(Object key, Object value) { putIfAbsent(defaultCache, key, value); }
 	@Override
-	public Object get(Object key) {
-		return get(defaultCache, key);
-	}
+	public Object get(Object key) { return get(defaultCache, key); }
 
 	@Override
 	public void clearCache() {
@@ -102,14 +89,12 @@ public class DefaultLayedCachePool implements LayerCachePool {
 		for (CachePool pool : allCaches.values()) {
 			pool.clearCache();
 		}
-
 	}
 
 	@Override
 	public void putIfAbsent(String primaryKey, Object secondKey, Object value) {
 		CachePool pool = getCache(primaryKey);
 		pool.putIfAbsent(secondKey, value);
-
 	}
 
 	@Override
@@ -123,30 +108,24 @@ public class DefaultLayedCachePool implements LayerCachePool {
 		CacheStatic cacheStatic = new CacheStatic();
 		cacheStatic.setMaxSize(this.getMaxSize());
 		for (CacheStatic singleStatic : getAllCacheStatic().values()) {
-			cacheStatic.setItemSize(cacheStatic.getItemSize()
-					+ singleStatic.getItemSize());
-			cacheStatic.setHitTimes(cacheStatic.getHitTimes()
-					+ singleStatic.getHitTimes());
-			cacheStatic.setAccessTimes(cacheStatic.getAccessTimes()
-					+ singleStatic.getAccessTimes());
-			cacheStatic.setPutTimes(cacheStatic.getPutTimes()
-					+ singleStatic.getPutTimes());
-			if (cacheStatic.getLastAccesTime() < singleStatic
-					.getLastAccesTime()) {
+			cacheStatic.setItemSize(cacheStatic.getItemSize() + singleStatic.getItemSize());
+			cacheStatic.setHitTimes(cacheStatic.getHitTimes() + singleStatic.getHitTimes());
+			cacheStatic.setAccessTimes(cacheStatic.getAccessTimes() + singleStatic.getAccessTimes());
+			cacheStatic.setPutTimes(cacheStatic.getPutTimes() + singleStatic.getPutTimes());
+			if (cacheStatic.getLastAccesTime() < singleStatic.getLastAccesTime()) {
 				cacheStatic.setLastAccesTime(singleStatic.getLastAccesTime());
 			}
 			if (cacheStatic.getLastPutTime() < singleStatic.getLastPutTime()) {
 				cacheStatic.setLastPutTime(singleStatic.getLastPutTime());
 			}
-
 		}
 		return cacheStatic;
 	}
 
 	@Override
 	public Map<String, CacheStatic> getAllCacheStatic() {
-		Map<String, CacheStatic> results = new HashMap<String, CacheStatic>(
-				this.allCaches.size());
+		Map<String, CacheStatic> results = new HashMap<String, CacheStatic>(this.allCaches.size());
+
 		for (Map.Entry<String, CachePool> entry : allCaches.entrySet()) {
 			results.put(entry.getKey(), entry.getValue().getCacheStatic());
 		}
@@ -162,5 +141,4 @@ public class DefaultLayedCachePool implements LayerCachePool {
 		}
 		return maxSize;
 	}
-
 }

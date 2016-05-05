@@ -25,34 +25,22 @@ import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * show tables impl
- * 
- * @author yanglixue
- * 
- */
+/* 执行show table命令 */
 public class ShowTables {
-
 	private static final int FIELD_COUNT = 1;
-	private static final ResultSetHeaderPacket header = PacketUtil
-			.getHeader(FIELD_COUNT);
+	private static final ResultSetHeaderPacket header = PacketUtil.getHeader(FIELD_COUNT);
 	private static final FieldPacket[] fields = new FieldPacket[FIELD_COUNT];
 	private static final EOFPacket eof = new EOFPacket();
 
 	private static final String SCHEMA_KEY = "schemaName";
-	private static final Pattern pattern = Pattern
-			.compile(
-					"^\\s*(SHOW)\\s+(TABLES)(\\s+(FROM)\\s+([a-zA-Z_0-9]+))?(\\s+(LIKE\\s+'(.*)'))?\\s*",
-					Pattern.CASE_INSENSITIVE);
+	private static final Pattern pattern = Pattern.compile(
+												"^\\s*(SHOW)\\s+(TABLES)(\\s+(FROM)\\s+([a-zA-Z_0-9]+))?(\\s+(LIKE\\s+'(.*)'))?\\s*",
+												Pattern.CASE_INSENSITIVE
+											);
 
-	/**
-	 * response method.
-	 * 
-	 * @param c
-	 */
+	/* response method */
 	public static void response(MySQLFrontConnection c, String stmt, int type) {
-		SchemaConfig schema = MycatServer.getInstance().getConfig()
-				.getSchemas().get(c.getSchema());
+		SchemaConfig schema = MycatServer.getInstance().getConfig().getSchemas().get(c.getSchema());
 		if (schema != null) {
             //不分库的schema，show tables从后端 mysql中查
             String node = schema.getDataNode();

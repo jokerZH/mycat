@@ -457,22 +457,16 @@ public class StringUtil {
 		return new String(chars, 0, len);
 	}
 
-	/**
-	 * insert into tablexxx
-	 * 
-	 * @param sql
-	 * @return
-	 */
+	/* 处理insert into tablexxx, 获得表名 */
 	public static String getTableName(String oriSql) {
         //此处应该优化为去掉sql中的注释，或兼容注释
         String sql=null;
-        if(oriSql.startsWith(LoadData.loadDataHint))
-        {
+        if(oriSql.startsWith(LoadData.loadDataHint)) {
            sql=oriSql.substring(LoadData.loadDataHint.length()) ;
-        } else
-        {
+        } else {
             sql=oriSql;
         }
+
 		int pos = 0;
 		boolean insertFound = false;
 		boolean intoFound = false;

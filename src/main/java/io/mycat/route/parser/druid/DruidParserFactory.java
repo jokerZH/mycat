@@ -29,23 +29,15 @@ import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlInsertStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlUpdateStatement;
 import com.alibaba.druid.sql.visitor.SchemaStatVisitor;
 
-/**
- * DruidParser的工厂类
- *
- * @author wdw
- */
+/* DruidParser的工厂类 */
 public class DruidParserFactory
 {
-
     public static DruidParser create(SchemaConfig schema, SQLStatement statement, SchemaStatVisitor visitor)
     {
         DruidParser parser = null;
-        if (statement instanceof SQLSelectStatement)
-        {
-            if(schema.isNeedSupportMultiDBType())
-            {
+        if (statement instanceof SQLSelectStatement) {
+            if(schema.isNeedSupportMultiDBType()) {
                 parser = getDruidParserForMultiDB(schema, statement, visitor);
-
             }
 
             if (parser == null)

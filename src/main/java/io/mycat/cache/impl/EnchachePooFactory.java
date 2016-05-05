@@ -29,17 +29,17 @@ import net.sf.ehcache.Cache;
 import net.sf.ehcache.CacheManager;
 import net.sf.ehcache.config.CacheConfiguration;
 
+/* 基于ehcache实现内存缓存工厂 */
 public class EnchachePooFactory extends CachePoolFactory {
 
 	@Override
-	public CachePool createCachePool(String poolName, int cacheSize,
-			int expiredSeconds) {
+	public CachePool createCachePool(String poolName, int cacheSize, int expiredSeconds) {
+		/* 单例模式创建CacheManger */
 		CacheManager cacheManager = CacheManager.create();
 		Cache enCache = cacheManager.getCache(poolName);
-		if (enCache == null) {
 
-			CacheConfiguration cacheConf = cacheManager.getConfiguration()
-					.getDefaultCacheConfiguration().clone();
+		if (enCache == null) {
+			CacheConfiguration cacheConf = cacheManager.getConfiguration().getDefaultCacheConfiguration().clone();
 			cacheConf.setName(poolName);
 			if (cacheConf.getMaxEntriesLocalHeap() != 0) {
 				cacheConf.setMaxEntriesLocalHeap(cacheSize);

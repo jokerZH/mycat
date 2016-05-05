@@ -8,28 +8,14 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * 路由计算单元
- * 
- * @author wang.dw
- * @date 2015-3-14 下午6:24:54
- * @version 0.1.0 
- * @copyright wonhigh.cn
- */
+/* 路由计算单元 */
 public class RouteCalculateUnit {
-	private Map<String, Map<String, Set<ColumnRoutePair>>> tablesAndConditions = new LinkedHashMap<String, Map<String, Set<ColumnRoutePair>>>();
-
-	public Map<String, Map<String, Set<ColumnRoutePair>>> getTablesAndConditions() {
-		return tablesAndConditions;
-	}
+	private Map<String, Map<String, Set<ColumnRoutePair>>> tablesAndConditions = new LinkedHashMap<String, Map<String, Set<ColumnRoutePair>>>();	/* TODO */
 
 	public void addShardingExpr(String tableName, String columnName, Object value) {
 		Map<String, Set<ColumnRoutePair>> tableColumnsMap = tablesAndConditions.get(tableName);
 		
-		if (value == null) {
-			// where a=null
-			return;
-		}
+		if (value == null) { return; }
 		
 		if (tableColumnsMap == null) {
 			tableColumnsMap = new LinkedHashMap<String, Set<ColumnRoutePair>>();
@@ -58,9 +44,6 @@ public class RouteCalculateUnit {
 		}
 	}
 	
-	public void clear() {
-		tablesAndConditions.clear();
-	}
-	
-	
+	public void clear() { tablesAndConditions.clear(); }
+	public Map<String, Map<String, Set<ColumnRoutePair>>> getTablesAndConditions() { return tablesAndConditions; }
 }

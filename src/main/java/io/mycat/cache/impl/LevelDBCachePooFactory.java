@@ -10,11 +10,11 @@ import java.io.File;
 import org.iq80.leveldb.DB;
 import org.iq80.leveldb.Options;
 
+/* TODO 使用levelDB来缓存 */
 public class LevelDBCachePooFactory extends CachePoolFactory {
 
 	@Override
-	public CachePool createCachePool(String poolName, int cacheSize,
-			int expireSeconds) {
+	public CachePool createCachePool(String poolName, int cacheSize, int expireSeconds) {
   	  Options options = new Options();
   	  options.cacheSize(cacheSize * 1048576);//cacheSize M 大小
   	  options.createIfMissing(true);

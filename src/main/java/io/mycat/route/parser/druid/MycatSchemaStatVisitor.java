@@ -31,11 +31,7 @@ import com.alibaba.druid.stat.TableStat.Column;
 import com.alibaba.druid.stat.TableStat.Condition;
 import com.alibaba.druid.stat.TableStat.Mode;
 
-/**
- * Druid解析器中用来从ast语法中提取表名、条件、字段等的vistor
- * @author wang.dw
- *
- */
+/* Druid解析器中用来从ast语法中提取表名、条件、字段等的vistor */
 public class MycatSchemaStatVisitor extends MySqlSchemaStatVisitor {
 	private boolean hasOrCondition = false;
 	private List<WhereUnit> whereUnits = new CopyOnWriteArrayList<WhereUnit>();
@@ -47,19 +43,12 @@ public class MycatSchemaStatVisitor extends MySqlSchemaStatVisitor {
 		this.hasOrCondition = false;
 	}
 	
-	public List<WhereUnit> getWhereUnits() {
-		return whereUnits;
-	}
-
-	public boolean hasOrCondition() {
-		return hasOrCondition;
-	}
+	public List<WhereUnit> getWhereUnits() { return whereUnits; }
+	public boolean hasOrCondition() { return hasOrCondition; }
 	
     @Override
     public boolean visit(SQLSelectStatement x) {
         setAliasMap();
-//        getAliasMap().put("DUAL", null);
-
         return true;
     }
 
@@ -548,6 +537,5 @@ public class MycatSchemaStatVisitor extends MySqlSchemaStatVisitor {
         return false;
     }
     
-    public void endVisit(MySqlDeleteStatement x) {
-    }
+    public void endVisit(MySqlDeleteStatement x) {}
 }

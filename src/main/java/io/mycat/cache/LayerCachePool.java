@@ -25,21 +25,15 @@ package io.mycat.cache;
 
 import java.util.Map;
 
-/**
- * Layered cache pool
- * 
- * @author wuzhih
- * 
- */
+/* 两层key的缓存 */
 public interface LayerCachePool extends CachePool {
 
+	/* 假如一个 k-k-v */
 	public void putIfAbsent(String primaryKey, Object secondKey, Object value);
 
+	/* 获得一个v */
 	public Object get(String primaryKey, Object secondKey);
 
-	/**
-	 * get all cache static, name is cache name
-	 * @return map of CacheStatic
-	 */
+	/* get all cache static, name is cache name */
 	public Map<String, CacheStatic> getAllCacheStatic();
 }

@@ -59,7 +59,7 @@ public class MycatConfig implements ConfigReLoader{
 	private volatile Map<String/*sliceName*/, PhysicalDBPool> dataHosts;	/* 具有主从关系的多个mysql实例 */
 	private volatile HostIndexConfig hostIndexConfig;
 	private volatile CharsetConfig charsetConfig;
-	private volatile SequenceConfig sequenceConfig;
+	private volatile SequenceConfig sequenceConfig;							/* sequence的配置 */
 
 	private long reloadTime;
 	private long rollbackTime;

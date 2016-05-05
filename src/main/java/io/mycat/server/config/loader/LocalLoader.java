@@ -66,19 +66,23 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
-/**
- * @author mycat
- */
+/* TOOD */
 public class LocalLoader implements ConfigLoader {
+	// sharding
+    private  Map<String, DataHostConfig> dataHosts;		/* 主从 Mysql实例配置 */
+    private  Map<String, DataNodeConfig> dataNodes;		/* 主从 Mysql db配置 */
+    private  Map<String, SchemaConfig> schemas;			/* 逻辑db */
+    private  Map<String, RuleConfig> tableRules;		/* 规则 */
 
-    private  Map<String, DataHostConfig> dataHosts;
-    private  Map<String, DataNodeConfig> dataNodes;
-    private  Map<String, SchemaConfig> schemas;
-    private  Map<String, RuleConfig> tableRules;
+	// normal
     private  SystemConfig system;
-    private  Map<String, UserConfig> users;
-    private  QuarantineConfig quarantine;
+    private  Map<String, UserConfig> users;				/* 用户配置 */
+
+	// cluster
+    private  QuarantineConfig quarantine;				/* 集群 */
     private  MycatClusterConfig cluster;
+
+	// mysql
     private  CharsetConfig charsetConfig;
     private  HostIndexConfig hostIndexConfig;
     private  SequenceConfig sequenceConfig;

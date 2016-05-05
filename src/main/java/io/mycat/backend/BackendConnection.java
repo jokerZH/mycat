@@ -46,6 +46,7 @@ public interface BackendConnection extends ClosableConnection{
 
 	public void execute(RouteResultsetNode node, MySQLFrontConnection source, boolean autocommit) throws IOException;
 
+	/* TODO */
 	public boolean syncAndExcute();
 
 	public void rollback();

@@ -51,11 +51,12 @@ public class ColMeta {
 	public static final int COL_TYPE_VAR_STRING = 0xfd;
 	public static final int COL_TYPE_STRING = 0xfe;
 	public static final int COL_TYPE_GEOMETRY = 0xff;
-	public  int colIndex;
-	public final int colType;
 
-    public  int avgSumIndex;
-    public  int avgCountIndex;
+	public  int colIndex;		/* 字段的下标 */
+	public final int colType;	/* 字段的类型 */
+
+    public  int avgSumIndex;	/* TODO */
+    public  int avgCountIndex;	/* TODO */
 
     public ColMeta(int colIndex, int colType) {
 		super();
@@ -68,13 +69,9 @@ public class ColMeta {
         this.avgCountIndex=avgCountIndex;
         this.colType = colType;
     }
-	public int getColIndex() {
-		return colIndex;
-	}
 
-	public int getColType() {
-		return colType;
-	}
+	public int getColIndex() { return colIndex; }
+	public int getColType() { return colType; }
 
 	@Override
 	public String toString() {

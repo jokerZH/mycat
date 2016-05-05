@@ -26,16 +26,11 @@ package io.mycat.server.sequence;
 import io.mycat.MycatServer;
 import io.mycat.server.config.node.SequenceConfig;
 
-/**
- *
- * @author <a href="http://www.micmiu.com">Michael</a>
- * @time Create on 2013-12-20 下午3:35:53
- * @version 1.0
- */
+/* sequcnce的handler */
 public abstract class SequenceHandler {
+	/* 返回prefixName下一个id */
 	public abstract long nextId(String prefixName);
-	public static SequenceConfig getConfig(){
-		return MycatServer.getInstance().getConfig().getSequenceConfig();
-	};
 
+	/* 返回seuqnce的配置 */
+	public static SequenceConfig getConfig(){ return MycatServer.getInstance().getConfig().getSequenceConfig(); };
 }

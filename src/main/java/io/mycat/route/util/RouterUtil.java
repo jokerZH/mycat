@@ -35,40 +35,29 @@ import java.sql.SQLSyntaxErrorException;
 import java.util.*;
 import java.util.concurrent.Callable;
 
-/**
- * 从ServerRouterUtil中抽取的一些公用方法，路由解析工具类
- * @author wang.dw
- *
- */
+/* 从ServerRouterUtil中抽取的一些公用方法，路由解析工具类 */
 public class RouterUtil {
     private static final Logger LOGGER = LoggerFactory.getLogger(RouterUtil.class);
-    /**
-     * 移除执行语句中的数据库名
-     *
-     * @param stmt
-     *            执行语句
-     * @param schema
-     *            数据库名
-     * @return 执行语句
-     * @author mycat
-     */
 
-    public static String removeSchema(String stmt, String schema) {
+    /* 移除执行语句中的数据库名, 如 dbName.tableName -> tableName */
+    public static String/*执行语句*/ removeSchema(String stmt/*执行语句*/, String schema/*数据库名*/) {
         final String upStmt = stmt.toUpperCase();
         final String upSchema = schema.toUpperCase() + ".";
         int strtPos = 0;
         int indx = 0;
         boolean flag = false;
+
         indx = upStmt.indexOf(upSchema, strtPos);
         if (indx < 0) {
-            StringBuilder sb = new StringBuilder("`").append(
-                    schema.toUpperCase()).append("`.");
+            StringBuilder sb = new StringBuilder("`").append(schema.toUpperCase()).append("`.");
             indx = upStmt.indexOf(sb.toString(), strtPos);
             flag = true;
             if (indx < 0) {
+                // 没有数据库名出现
                 return stmt;
             }
         }
+
         StringBuilder sb = new StringBuilder();
         while (indx > 0) {
             sb.append(stmt.substring(strtPos, indx));
@@ -82,25 +71,15 @@ public class RouterUtil {
         return sb.toString();
     }
 
-    /**
-     * 获取第一个节点作为路由
-     *
-     * @param rrs
-     *            数据路由集合
-     * @param dataNode
-     *            数据库所在节点
-     * @param stmt
-     *            执行语句
-     * @return 数据路由集合
-     * @author mycat
-     */
-    public static RouteResultset routeToSingleNode(RouteResultset rrs,
-                                                   String dataNode, String stmt) {
+    /* 获取第一个节点作为路由 */
+    public static RouteResultset/*数据路由集合*/ routeToSingleNode(RouteResultset rrs/*数据路由集合*/, String dataNode/*数据库所在节点*/, String stmt/*执行语句*/) {
         if (dataNode == null) {
             return rrs;
         }
+
+        // 直接新建一个routeResult
         RouteResultsetNode[] nodes = new RouteResultsetNode[1];
-        nodes[0] = new RouteResultsetNode(dataNode, rrs.getSqlType(), stmt);//rrs.getStatement()
+        nodes[0] = new RouteResultsetNode(dataNode, rrs.getSqlType(), stmt);
         rrs.setNodes(nodes);
         rrs.setFinishedRoute(true);
         if (rrs.getCanRunInReadDB() != null) {
@@ -109,26 +88,20 @@ public class RouterUtil {
         return rrs;
     }
 
-    /**
-     * 获取table名字
-     *
-     * @param stmt
-     *            执行语句
-     * @param repPos
-     *            开始位置和位数
-     * @return 表名
-     * @author AStoneGod
-     */
-    public static String getTableName(String stmt, int[] repPos) {
+    /* 获取table名字 TODO */
+    public static String/*表名*/ getTableName(String stmt/*执行语句*/, int[] repPos/*开始位置和位数*/) {
 		int startPos = repPos[0];
+
 		int secInd = stmt.indexOf(' ', startPos + 1);
 		if (secInd < 0) {
 			secInd = stmt.length();
 		}
+
 		int thiInd = stmt.indexOf('(',secInd+1);
 		if (thiInd < 0) {
 			thiInd = stmt.length();
 		}
+
 		repPos[1] = secInd;
 		String tableName = "";
 		if (stmt.toUpperCase().startsWith("DESC")||stmt.toUpperCase().startsWith("DESCRIBE")){
@@ -144,6 +117,7 @@ public class RouterUtil {
 		if (tableName.contains("\n")){
 			tableName = tableName.substring(0,tableName.indexOf("\n"));
 		}
+
 		int ind2 = tableName.indexOf('.');
 		if (ind2 > 0) {
 			tableName = tableName.substring(ind2 + 1);
@@ -151,17 +125,8 @@ public class RouterUtil {
 		return tableName;
 	}
 
-    /**
-     * 获取语句中前关键字位置和占位个数表名位置
-     *
-     * @param upStmt
-     *            执行语句
-     * @param start
-     *            开始位置
-     * @return int[]关键字位置和占位个数
-     * @author mycat
-     */
-    public static int[] getCreateTablePos(String upStmt, int start) {
+    /* 获得Create语句中的表名的起始下标和表名的长度 */
+    public static int[]/*表名位置和占位个数*/ getCreateTablePos(String upStmt/*执行语句*/, int start/*开始位置*/) {
 		String token1 = "CREATE ";
 		String token2 = " TABLE ";
 		int createInd = upStmt.indexOf(token1, start);
@@ -174,17 +139,8 @@ public class RouterUtil {
 		}
 	}
 
-    /**
-     * 获取语句中前关键字位置和占位个数表名位置
-     *
-     * @param upStmt
-     *            执行语句
-     * @param start
-     *            开始位置
-     * @return int[]关键字位置和占位个数
-     * @author mycat
-     */
-    public static int[] getSpecPos(String upStmt, int start) {
+    /* 获得有FROM和IN关键词觉得的表名 */
+    public static int[]/*表名位置和占位个数*/ getSpecPos(String upStmt/*执行语句*/, int start/*开始位置*/) {
 		String token1 = " FROM ";
 		String token2 = " IN ";
 		int tabInd1 = upStmt.indexOf(token1, start);
@@ -200,17 +156,8 @@ public class RouterUtil {
 		}
 	}
 
-    /**
-     * 获取开始位置后的 LIKE、WHERE 位置 如果不含 LIKE、WHERE 则返回执行语句的长度
-     *
-     * @param upStmt
-     *            执行sql
-     * @param start
-     *            开发位置
-     * @return int
-     * @author mycat
-     */
-    public static int getSpecEndPos(String upStmt, int start) {
+    /* 获取开始位置后的 LIKE、WHERE 位置 如果不含 LIKE、WHERE 则返回执行语句的长度 */
+    public static int getSpecEndPos(String upStmt/*执行sql*/, int start/*开发位置*/) {
 		int tabInd = upStmt.indexOf(" LIKE ", start);
 		if (tabInd < 0) {
 			tabInd = upStmt.indexOf(" WHERE ", start);
@@ -221,10 +168,15 @@ public class RouterUtil {
 		return tabInd;
 	}
 
-    public static boolean processWithMycatSeq(SchemaConfig schema, int sqlType,
-                                              String origSQL, MySQLFrontConnection sc) {
+
+    /* TODO 处理sequence相关 */
+    public static boolean processWithMycatSeq(
+            SchemaConfig schema,    /* 逻辑DB */
+            int sqlType,            /* sql类型 */
+            String origSQL,         /* sql语句 */
+            MySQLFrontConnection sc /* 客户端连接 */
+    ) {
         // check if origSQL is with global sequence
-        // @micmiu it is just a simple judgement
         if (origSQL.indexOf(" MYCATSEQ_") != -1) {
             processSQL(sc,schema,origSQL,sqlType);
             return true;
@@ -232,12 +184,13 @@ public class RouterUtil {
         return false;
     }
 
+    /* 给sql分配id,并修改sql语句 */
     public static void processSQL(MySQLFrontConnection sc,SchemaConfig schema,String sql,int sqlType){
         MycatServer.getInstance().getSequnceProcessor().addNewSql(new SessionSQLPair(sc.getSession2(), schema, sql, sqlType));
     }
 
-    public static boolean processInsert(SchemaConfig schema, int sqlType,
-                                        String origSQL, MySQLFrontConnection sc) throws SQLNonTransientException {
+    /* insert 增加自增id */
+    public static boolean processInsert(SchemaConfig schema, int sqlType, String origSQL, MySQLFrontConnection sc) throws SQLNonTransientException {
         String tableName = StringUtil.getTableName(origSQL).toUpperCase();
         TableConfig tableConfig = schema.getTables().get(tableName);
         boolean processedInsert=false;
@@ -248,11 +201,12 @@ public class RouterUtil {
         return processedInsert;
     }
 
+    /* insert中, 判断主键是否在sql语句中 */
     private static boolean isPKInFields(String origSQL,String primaryKey,int firstLeftBracketIndex,int firstRightBracketIndex){
-        if(primaryKey==null)
-        {
+        if(primaryKey==null) {
             throw new RuntimeException("please make sure the primaryKey's config is not null in schemal.xml")  ;
         }
+
         boolean isPrimaryKeyInFields=false;
         String upperSQL=origSQL.substring(firstLeftBracketIndex,firstRightBracketIndex+1).toUpperCase();
         for(int pkOffset=0,primaryKeyLength=primaryKey.length(),pkStart=0;;){
@@ -274,8 +228,15 @@ public class RouterUtil {
         return isPrimaryKeyInFields;
     }
 
-    public static boolean processInsert(MySQLFrontConnection sc,SchemaConfig schema,
-                                        int sqlType,String origSQL,String tableName,String primaryKey) throws SQLNonTransientException {
+    /* 处理insert, 自增主键的情况 */
+    public static boolean/*是否增加*/ processInsert(
+            MySQLFrontConnection sc,    /* 客户端连接 */
+            SchemaConfig schema,        /* 逻辑DB */
+            int sqlType,                /* sql类型 */
+            String origSQL,             /* sql语句 */
+            String tableName,           /* 逻辑表名 */
+            String primaryKey           /* 主键字段名 */
+    ) throws SQLNonTransientException {
 
         int firstLeftBracketIndex = origSQL.indexOf("(");
         int firstRightBracketIndex = origSQL.indexOf(")");
@@ -283,13 +244,15 @@ public class RouterUtil {
         int valuesIndex = upperSql.indexOf("VALUES");
         int selectIndex = upperSql.indexOf("SELECT");
         int fromIndex = upperSql.indexOf("FROM");
-        if(firstLeftBracketIndex < 0) {//insert into table1 select * from table2
+
+        if(firstLeftBracketIndex < 0) {
+            //insert into table1 select * from table2
             String msg = "invalid sql:" + origSQL;
             LOGGER.warn(msg);
             throw new SQLNonTransientException(msg);
         }
 
-        if(selectIndex > 0 &&fromIndex>0&&selectIndex>firstRightBracketIndex) {
+        if(selectIndex>0 && fromIndex>0 && selectIndex>firstRightBracketIndex) {
             String msg = "multi insert not provided" ;
             LOGGER.warn(msg);
             throw new SQLNonTransientException(msg);
@@ -306,7 +269,17 @@ public class RouterUtil {
         return processedInsert;
     }
 
-    private static void processInsert(MySQLFrontConnection sc,SchemaConfig schema,int sqlType,String origSQL,String tableName,String primaryKey,int afterFirstLeftBracketIndex,int afterLastLeftBracketIndex){
+    /* 处理insert, 增减自增主键, 假如主键和"next value for MYCATSEQ_" */
+    private static void processInsert(
+            MySQLFrontConnection sc,            /* 客户端连接 */
+            SchemaConfig schema,                /* 逻辑DB */
+            int sqlType,                        /* sql类型 */
+            String origSQL,                     /* 原先的sql语句 */
+            String tableName,                   /* 逻辑表名 */
+            String primaryKey,                  /* 主键字段名 */
+            int afterFirstLeftBracketIndex,     /* 第一个(出现的地方 */
+            int afterLastLeftBracketIndex       /* 最后一个(出现的地方 */
+    ){
         int primaryKeyLength=primaryKey.length();
         int insertSegOffset=afterFirstLeftBracketIndex;
         String mycatSeqPrefix="next value for MYCATSEQ_";
@@ -359,31 +332,13 @@ public class RouterUtil {
         return tableName;
     }
 
-    /**
-     * 处理SQL
-     *
-     * @param stmt
-     *            执行语句
-     * @return 处理后SQL
-     * @author AStoneGod
-     */
-
+    /* 处理SQL */
     public static String getFixedSql(String stmt){
-        if (stmt.endsWith(";"))
-            stmt = stmt.substring(0,stmt.length()-2);
+        if (stmt.endsWith(";")) stmt = stmt.substring(0,stmt.length()-2);
         return stmt = stmt.trim().replace("`","");  
     }
 
-    /**
-     * 获取ALTER语句中前关键字位置和占位个数表名位置
-     *
-     * @param upStmt
-     *            执行语句
-     * @param start
-     *            开始位置
-     * @return int[]关键字位置和占位个数
-     * @author aStoneGod
-     */
+    /* 获取ALTER语句中表名位置和占位个数表名位置 */
     public static int[] getAlterTablePos(String upStmt, int start) {
 		String token1 = "ALTER ";
 		String token2 = " TABLE ";
@@ -397,16 +352,7 @@ public class RouterUtil {
 		}
 	}
 
-    /**
-     * 获取DROP语句中前关键字位置和占位个数表名位置
-     *
-     * @param upStmt
-     *            执行语句
-     * @param start
-     *            开始位置
-     * @return int[]关键字位置和占位个数
-     * @author aStoneGod
-     */
+    /* 获取DROP语句中表名的位置和占位个数表名位置 */
     public static int[] getDropTablePos(String upStmt, int start) {
 		//增加 if exists判断
 		if(upStmt.contains("EXISTS")){
@@ -434,16 +380,7 @@ public class RouterUtil {
 	}
 
 
-    /**
-     * 获取TRUNCATE语句中前关键字位置和占位个数表名位置
-     *
-     * @param upStmt
-     *            执行语句
-     * @param start
-     *            开始位置
-     * @return int[]关键字位置和占位个数
-     * @author aStoneGod
-     */
+    /* 获取TRUNCATE语句中表名位置和占位个数表名位置 */
     public static int[] getTruncateTablePos(String upStmt, int start) {
 		String token1 = "TRUNCATE ";
 		String token2 = " TABLE ";
@@ -457,12 +394,7 @@ public class RouterUtil {
 		}
 	}
 
-    /**
-     * 修复DDL路由
-     *
-     * @return RouteResultset
-     * @author aStoneGod
-     */
+    /* DDL命令需要给表中所有node都发一遍 */
     public static RouteResultset routeToDDLNode(RouteResultset rrs, int sqlType, String stmt,SchemaConfig schema) throws SQLSyntaxErrorException {
     	//检查表是否在配置文件中
 		stmt = getFixedSql(stmt);
@@ -498,7 +430,8 @@ public class RouterUtil {
                 rrs.setNodes(nodes);
             }
             return rrs;
-        }else if(schema.getDataNode()!=null){		//默认节点ddl
+        }else if(schema.getDataNode()!=null){
+            //默认节点ddl
             RouteResultsetNode[] nodes = new RouteResultsetNode[1];
             nodes[0] = new RouteResultsetNode(schema.getDataNode(), sqlType, stmt);
             rrs.setNodes(nodes);
@@ -1127,35 +1060,45 @@ public class RouterUtil {
     }
 
 
-    public static boolean processERChildTable(final SchemaConfig schema, final String origSQL,
-                                              final MySQLFrontConnection sc) throws SQLNonTransientException {
+    /* 如果有子表,返回true, 如果没有 返回false */
+    public static boolean processERChildTable(
+            final SchemaConfig schema,      /*逻辑DB*/
+            final String origSQL,           /*sql语句*/
+            final MySQLFrontConnection sc   /*客户端连接*/
+    ) throws SQLNonTransientException
+    {
+        // 默认处理的是insert sql语句
         String tableName = StringUtil.getTableName(origSQL).toUpperCase();
         final TableConfig tc = schema.getTables().get(tableName);
 
         if (null != tc && tc.isChildTable()) {
+            // insert的表是子表
             final RouteResultset rrs = new RouteResultset(origSQL, ServerParse.INSERT);
             String joinKey = tc.getJoinKey();
-            MySqlInsertStatement insertStmt = (MySqlInsertStatement) (new MySqlStatementParser(origSQL)).parseInsert();
-            int joinKeyIndex = getJoinKeyIndex(insertStmt.getColumns(), joinKey);
 
+            // 语法解析
+            MySqlInsertStatement insertStmt = (MySqlInsertStatement) (new MySqlStatementParser(origSQL)).parseInsert();
+
+            int joinKeyIndex = getJoinKeyIndex(insertStmt.getColumns(), joinKey);
+            // 必须有外键
             if (joinKeyIndex == -1) {
                 String inf = "joinKey not provided :" + tc.getJoinKey() + "," + insertStmt;
                 LOGGER.warn(inf);
                 throw new SQLNonTransientException(inf);
             }
+
+            // 不可以批量的时候有外键
             if (isMultiInsert(insertStmt)) {
                 String msg = "ChildTable multi insert not provided";
                 LOGGER.warn(msg);
                 throw new SQLNonTransientException(msg);
             }
 
+            /* 获得insert语句中 外键的值 */
             String joinKeyVal = insertStmt.getValues().getValues().get(joinKeyIndex).toString();
-
             String sql = insertStmt.toString();
 
-            // try to route by ER parent partion key
-            //RouteResultset theRrs = RouterUtil.routeByERParentKey(sc,schema,ServerParse.INSERT,sql, rrs, tc, joinKeyVal);
-
+            // FIXME
             if (null != null) {
             	boolean processedInsert=false;
                 if ( sc!=null && tc.isAutoIncrement()) {
@@ -1175,68 +1118,69 @@ public class RouterUtil {
                 LOGGER.debug("find root parent's node sql " + findRootTBSql);
             }
 
-            ListenableFuture<String> listenableFuture = MycatServer.getInstance().
-                    getListeningExecutorService().submit(new Callable<String>() {
-                @Override
-                public String call() throws Exception {
-                    FetchStoreNodeOfChildTableHandler fetchHandler = new FetchStoreNodeOfChildTableHandler();
-                    return fetchHandler.execute(schema.getName(), findRootTBSql, tc.getRootParent().getDataNodes());
-                }
-            });
-
-
-            Futures.addCallback(listenableFuture, new FutureCallback<String>() {
-                @Override
-                public void onSuccess(String result) {
-                    if (Strings.isNullOrEmpty(result)) {
-                        StringBuilder s = new StringBuilder();
-                        LOGGER.warn(s.append(sc.getSession2()).append(origSQL).toString() +
-                                " err:" + "can't find (root) parent sharding node for sql:" + origSQL);
-                        sc.writeErrMessage(ErrorCode.ER_PARSE_ERROR, "can't find (root) parent sharding node for sql:" + origSQL);
-                        return;
+            /* 执行findRootTBSql, 异步 */
+            ListenableFuture<String> listenableFuture = MycatServer.getInstance().getListeningExecutorService().submit(
+                    new Callable<String>() {
+                        @Override
+                        public String call() throws Exception {
+                            FetchStoreNodeOfChildTableHandler fetchHandler = new FetchStoreNodeOfChildTableHandler();
+                            return fetchHandler.execute(schema.getName(), findRootTBSql, tc.getRootParent().getDataNodes());
+                        }
                     }
+            );
 
-                    if (LOGGER.isDebugEnabled()) {
-                        LOGGER.debug("found partion node for child table to insert " + result + " sql :" + origSQL);
-                    }
-                    boolean processedInsert=false;
-                    if ( sc!=null && tc.isAutoIncrement()) {
-                        try {
-                            String primaryKey = tc.getPrimaryKey();
-							processedInsert=processInsert(sc,schema,ServerParse.INSERT,origSQL,tc.getName(),primaryKey);
-						} catch (SQLNonTransientException e) {
-							LOGGER.warn("sequence processInsert error,",e);
-		                    sc.writeErrMessage(ErrorCode.ER_PARSE_ERROR , "sequence processInsert error," + e.getMessage());
-						}
-                    }
-                    if(processedInsert==false){
-                    	RouteResultset executeRrs = RouterUtil.routeToSingleNode(rrs, result, origSQL);
-                        sc.getSession2().execute(executeRrs, ServerParse.INSERT);
-                    }
-                }
+            // 异步处理结果
+            Futures.addCallback(
+                    listenableFuture,
+                    new FutureCallback<String>() {
+                        @Override
+                        public void onSuccess(String result) {
+                            if (Strings.isNullOrEmpty(result)) {
+                                StringBuilder s = new StringBuilder();
+                                LOGGER.warn(s.append(sc.getSession2()).append(origSQL).toString() + " err:" + "can't find (root) parent sharding node for sql:" + origSQL);
+                                sc.writeErrMessage(ErrorCode.ER_PARSE_ERROR, "can't find (root) parent sharding node for sql:" + origSQL);
+                                return;
+                            }
 
-                @Override
-                public void onFailure(Throwable t) {
-                    StringBuilder s = new StringBuilder();
-                    LOGGER.warn(s.append(sc.getSession2()).append(origSQL).toString() +
-                            " err:" + t.getMessage());
-                    sc.writeErrMessage(ErrorCode.ER_PARSE_ERROR, t.getMessage() + " " + s.toString());
-                }
-            }, MycatServer.getInstance().
-                    getListeningExecutorService());
+                            if (LOGGER.isDebugEnabled()) {
+                                LOGGER.debug("found partion node for child table to insert " + result + " sql :" + origSQL);
+                            }
+
+                            boolean processedInsert = false;
+                            if (sc != null && tc.isAutoIncrement()) {
+                                try {
+                                    String primaryKey = tc.getPrimaryKey();
+                                    // 增加自增id, 其中会自己执行下去,所以如果执行了自增id,就不用管了
+                                    processedInsert = processInsert(sc, schema, ServerParse.INSERT, origSQL, tc.getName(), primaryKey);
+                                } catch (SQLNonTransientException e) {
+                                    LOGGER.warn("sequence processInsert error,", e);
+                                    sc.writeErrMessage(ErrorCode.ER_PARSE_ERROR, "sequence processInsert error," + e.getMessage());
+                                }
+                            }
+
+                            if (processedInsert == false) {
+                                // 没有执行自增id
+                                RouteResultset executeRrs = RouterUtil.routeToSingleNode(rrs, result, origSQL);
+                                sc.getSession2().execute(executeRrs, ServerParse.INSERT);
+                            }
+                        }
+
+                        @Override
+                        public void onFailure(Throwable t) {
+                            StringBuilder s = new StringBuilder();
+                            LOGGER.warn(s.append(sc.getSession2()).append(origSQL).toString() + " err:" + t.getMessage());
+                            sc.writeErrMessage(ErrorCode.ER_PARSE_ERROR, t.getMessage() + " " + s.toString());
+                        }
+                    },
+                    MycatServer.getInstance().getListeningExecutorService()
+            );
             return true;
         }
         return false;
     }
 
-    /**
-     * 寻找joinKey的索引
-     *
-     * @param columns
-     * @param joinKey
-     * @return -1表示没找到，>=0表示找到了
-     */
-    private static int getJoinKeyIndex(List<SQLExpr> columns, String joinKey) {
+    /* 寻找joinKey的索引 */
+    private static int/*-1表示没找到，>=0表示找到*/ getJoinKeyIndex(List<SQLExpr> columns/*sql语句中的字段名列表*/, String joinKey) {
         for (int i = 0; i < columns.size(); i++) {
             String col = StringUtil.removeBackquote(columns.get(i).toString()).toUpperCase();
             if (col.equals(joinKey)) {
@@ -1246,19 +1190,9 @@ public class RouterUtil {
         return -1;
     }
 
-    /**
-     * 是否为批量插入：insert into ...values (),()...或 insert into ...select.....
-     *
-     * @param insertStmt
-     * @return
-     */
+    /* 是否为批量插入：insert into ...values (),()...或 insert into ...select..... */
     private static boolean isMultiInsert(MySqlInsertStatement insertStmt) {
         return (insertStmt.getValuesList() != null && insertStmt.getValuesList().size() > 1) || insertStmt.getQuery() != null;
     }
 
 }
-
-
-
-
-

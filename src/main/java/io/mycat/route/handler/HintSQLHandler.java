@@ -12,15 +12,12 @@ import io.mycat.server.parser.ServerParse;
 
 import java.sql.SQLNonTransientException;
 
-/**
- * 处理注释中 类型为sql的情况 （按照 注释中的sql做路由解析，而不是实际的sql）
- */
+/* 类型为sql的情况 （按照注释中的sql做路由解析，而不是实际的sql）*/
 public class HintSQLHandler implements HintHandler {
 	private RouteStrategy routeStrategy;
 	
-	public HintSQLHandler() {
-		this.routeStrategy = RouteStrategyFactory.getRouteStrategy();
-	}
+	public HintSQLHandler() { this.routeStrategy = RouteStrategyFactory.getRouteStrategy(); }
+
 
 	@Override
 	public RouteResultset route(SystemConfig sysConfig, SchemaConfig schema,

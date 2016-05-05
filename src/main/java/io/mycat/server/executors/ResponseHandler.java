@@ -59,8 +59,7 @@ public interface ResponseHandler {
 	/**
 	 * 收到字段数据包结束的响应处理
 	 */
-	void fieldEofResponse(byte[] header, List<byte[]> fields, byte[] eof,
-			BackendConnection conn);
+	void fieldEofResponse(byte[] header, List<byte[]> fields, byte[] eof, BackendConnection conn);
 
 	/**
 	 * 收到行数据包的响应处理

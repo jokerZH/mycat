@@ -92,7 +92,7 @@ public class NonBlockingSession{
 		return target.remove(key);
 	}
 
-	
+	/* 执行路由结果 */
 	public void execute(RouteResultset rrs, int type) {
 		// clear prev execute resources
 		clearHandlesResources();

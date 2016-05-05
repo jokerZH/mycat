@@ -23,16 +23,11 @@
  */
 package io.mycat.sqlengine.mpp;
 
-/**
- * column ->node index
- * 
- * @author wuzhih
- * 
- */
+/* column ->node index */
 public class ColumnRoutePair {
-	public final String colValue;
-	public final RangeValue rangeValue;
-	public Integer nodeId;
+	public final String colValue;		/* 字段值 */
+	public final RangeValue rangeValue;	/* 范围值 */
+	public Integer nodeId;				/* 结果下标 */
 
 	public ColumnRoutePair(String colValue) {
 		super();
@@ -46,13 +41,8 @@ public class ColumnRoutePair {
 		this.colValue = null;
 	}
 
-	public Integer getNodeId() {
-		return nodeId;
-	}
-
-	public void setNodeId(Integer nodeId) {
-		this.nodeId = nodeId;
-	}
+	public Integer getNodeId() {return nodeId; }
+	public void setNodeId(Integer nodeId) { this.nodeId = nodeId; }
 
 	@Override
 	public int hashCode() {
@@ -98,8 +88,5 @@ public class ColumnRoutePair {
 	}
 
 	@Override
-	public String toString() {
-		return "ColumnRoutePair [colValue=" + colValue + ", nodeId=" + nodeId
-				+ "]";
-	}
+	public String toString() { return "ColumnRoutePair [colValue=" + colValue + ", nodeId=" + nodeId + "]"; }
 }

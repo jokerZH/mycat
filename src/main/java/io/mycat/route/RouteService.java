@@ -40,29 +40,31 @@ import java.sql.SQLNonTransientException;
 import java.sql.SQLSyntaxErrorException;
 import java.util.Locale;
 
+/* 路由功能 */
 public class RouteService {
-	
 	private static final Logger LOGGER = LoggerFactory.getLogger(RouteService.class);
-	
-	private final CachePool sqlRouteCache;
-	private final LayerCachePool tableId2DataNodeCache;
-	
 	private final String OLD_MYCAT_HINT = "/*!mycat:"; 	// 处理自定义分片注解, 注解格式：/*!mycat: type = value */ sql
 	private final String NEW_MYCAT_HINT = "/*#mycat:"; 	// 新的注解格式:/* !mycat: type = value */ sql，oldMycatHint的格式不兼容直连mysql
-	private final String HINT_SPLIT = "=";
+	private final String HINT_SPLIT = "=";				// 注释中格式是 type=value
+
+	private final CachePool sqlRouteCache;				/* sql和路由结果的缓存 */
+	private final LayerCachePool tableId2DataNodeCache;	/* TODO */
 
 	public RouteService(CacheService cachService) {
 		sqlRouteCache = cachService.getCachePool("SQLRouteCache");
 		tableId2DataNodeCache = (LayerCachePool) cachService.getCachePool("TableID2DataNodeCache");
 	}
 
-	public LayerCachePool getTableId2DataNodeCache() {
-		return tableId2DataNodeCache;
-	}
+	public LayerCachePool getTableId2DataNodeCache() { return tableId2DataNodeCache; }
 
-	public RouteResultset route(SystemConfig sysconf, SchemaConfig schema,
-			int sqlType, String stmt, String charset, MySQLFrontConnection sc)
-			throws SQLNonTransientException {
+	public RouteResultset route(
+			SystemConfig sysconf,	/* 系统配置 */
+			SchemaConfig schema,	/* 逻辑db配置 */
+			int sqlType,			/* sql类型 */
+			String stmt,			/* sql语句 */
+			String charset,			/* 字符集 */
+			MySQLFrontConnection sc	/* 客户端连接 */
+	) throws SQLNonTransientException {
 		RouteResultset rrs = null;
 		String cacheKey = null;
 
@@ -79,11 +81,13 @@ public class RouteService {
         boolean isMatchOldHint = stmt.startsWith(OLD_MYCAT_HINT);
         boolean isMatchNewHint = stmt.startsWith(NEW_MYCAT_HINT);
 		if (isMatchOldHint || isMatchNewHint) {
+			// 处理hint的情况
 			int endPos = stmt.indexOf("*/");
 			if (endPos > 0) {
 				int hintLength = isMatchOldHint ? OLD_MYCAT_HINT.length() : NEW_MYCAT_HINT.length();
 				
 				// 用!mycat:内部的语句来做路由分析
+				// 拿到hint字符串
 				String hint = stmt.substring(hintLength, endPos).trim();
                 int firstSplitPos = hint.indexOf(HINT_SPLIT);
                 
@@ -94,6 +98,7 @@ public class RouteService {
                     	LOGGER.warn("comment int sql must meet :/*!mycat:type=value*/ or /*#mycat:type=value*/: "+stmt);
                     	throw new SQLSyntaxErrorException("comment int sql must meet :/*!mycat:type=value*/ or /*#mycat:type=value*/: "+stmt);
                     }
+
                     String realSQL = stmt.substring(endPos + "*/".length()).trim();
 
                     HintHandler hintHandler = HintHandlerFactory.getHintHandler(hintType);
@@ -102,15 +107,17 @@ public class RouteService {
                     }else{
                         LOGGER.warn("TODO , support hint sql type : " + hintType);
                     }
-                }else{//fixed by runfriends@126.com
+                }else{
+					// hint error
                 	LOGGER.warn("comment in sql must meet :/*!mycat:type=value*/ or /*#mycat:type=value*/: "+stmt);
                 	throw new SQLSyntaxErrorException("comment in sql must meet :/*!mcat:type=value*/ or /*#mycat:type=value*/: "+stmt);
                 }
 			}
+
 		} else {
+			// 非hint情况
 			stmt = stmt.trim();
-			rrs = RouteStrategyFactory.getRouteStrategy().route(sysconf, schema, sqlType, stmt,
-					charset, sc, tableId2DataNodeCache);
+			rrs = RouteStrategyFactory.getRouteStrategy().route(sysconf, schema, sqlType, stmt, charset, sc, tableId2DataNodeCache);
 		}
 
 		if (rrs!=null && sqlType == ServerParse.SELECT && rrs.isCacheAble()) {

@@ -56,14 +56,14 @@ public class SingleNodeHandler implements ResponseHandler, Terminatable, LoadDat
 	public static final Logger LOGGER = LoggerFactory.getLogger(SingleNodeHandler.class);
 
 	private final RouteResultsetNode node;			/* 路由结果 */
-	private final RouteResultset rrs;
-	private final NonBlockingSession session;
-	// only one thread access at one time no need lock
-	private volatile byte packetId;
-	private volatile boolean isRunning;
-	private Runnable terminateCallBack;
-    private volatile boolean isDefaultNodeShowTable;
-    private Set<String> shardingTablesSet;
+	private final RouteResultset rrs;				/* 路基集合 */
+	private final NonBlockingSession session;		/* 属于的session */
+
+	private volatile byte packetId;					/* Mysql协议中的PacketId */
+	private volatile boolean isRunning;				/* TODO */
+	private Runnable terminateCallBack;				/* TODO */
+    private volatile boolean isDefaultNodeShowTable;	/* 是否是具有默认db下的show table命令 */
+    private Set<String> shardingTablesSet;			/* 所有分表名集合 */
 
 	public SingleNodeHandler(RouteResultset rrs, NonBlockingSession session) {
 		this.rrs = rrs;
@@ -75,10 +75,12 @@ public class SingleNodeHandler implements ResponseHandler, Terminatable, LoadDat
 			throw new IllegalArgumentException("session is null!");
 		}
 		this.session = session;
+
         MySQLFrontConnection source = session.getSource();
         String schema=source.getSchema();
         if(schema!=null&&ServerParse.SHOW==rrs.getSqlType())
         {
+			/* 执行的show语句 */
             SchemaConfig schemaConfig= MycatServer.getInstance().getConfig().getSchemas().get(schema);
             int type= ServerParseShow.tableCheck(rrs.getStatement(),0) ;
             isDefaultNodeShowTable=(ServerParseShow.TABLES==type &&!Strings.isNullOrEmpty(schemaConfig.getDataNode()));

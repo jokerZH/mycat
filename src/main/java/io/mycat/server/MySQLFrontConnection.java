@@ -324,38 +324,30 @@ public class MySQLFrontConnection extends GenalMySQLConnection {
 		return readOnlyUser;
 	}
 
+    /* 执行sql语句, sql的类型是type */
 	public void execute(String sql, int type) {
-		SchemaConfig schema = MycatServer.getInstance().getConfig()
-				.getSchemas().get(this.schema);
+		SchemaConfig schema = MycatServer.getInstance().getConfig().getSchemas().get(this.schema);
 		if (schema == null) {
-			writeErrMessage(ErrorCode.ERR_BAD_LOGICDB,
-					"Unknown MyCAT Database '" + schema + "'");
+			writeErrMessage(ErrorCode.ERR_BAD_LOGICDB, "Unknown MyCAT Database '" + schema + "'");
 			return;
 		}
 		routeEndExecuteSQL(sql, type, schema);
-
 	}
 
-	public void routeEndExecuteSQL(String sql, int type, SchemaConfig schema) {
+    /* 在逻辑db schema上执行sql语句 */
+	public void routeEndExecuteSQL(String sql/*执行的sql*/, int type, SchemaConfig schema) {
 		// 路由计算
 		RouteResultset rrs = null;
 		try {
-			rrs = MycatServer
-					.getInstance()
-					.getRouterservice()
-					.route(MycatServer.getInstance().getConfig().getSystem(),
-							schema, type, sql, this.charset, this);
-
+			rrs = MycatServer.getInstance().getRouterservice().route(MycatServer.getInstance().getConfig().getSystem(), schema, type, sql, this.charset, this);
 		} catch (Exception e) {
 			StringBuilder s = new StringBuilder();
-			LOGGER.warn(
-					s.append(this).append(sql).toString() + " err:"
-							+ e.toString(), e);
+			LOGGER.warn(s.append(this).append(sql).toString() + " err:" + e.toString(), e);
 			String msg = e.getMessage();
-			writeErrMessage(ErrorCode.ER_PARSE_ERROR, msg == null ? e
-					.getClass().getSimpleName() : msg);
+			writeErrMessage(ErrorCode.ER_PARSE_ERROR, msg == null ? e.getClass().getSimpleName() : msg);
 			return;
 		}
+
 		if (rrs != null) {
 			// session执行
 			session.execute(rrs, type);

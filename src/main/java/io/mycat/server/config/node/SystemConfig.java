@@ -123,7 +123,7 @@ public final class SystemConfig {
 	/* unknown */
 	private int mutiNodeLimitType = MUTINODELIMIT_SMALL_DATA;
 	private int mutiNodePatchSize = MUTINODELIMIT_PATCH_SIZE;
-	private String defaultSqlParser = DEFAULT_SQL_PARSER;
+	private String defaultSqlParser = DEFAULT_SQL_PARSER;	/* TODO 默认的啥东西 */
 	private int usingAIO = 0;
 	private int packetHeaderSize = 4;
 	private int maxPacketSize = 16 * 1024 * 1024;

@@ -23,21 +23,20 @@
  */
 package io.mycat.cache;
 
-/**
- * simple cache pool for implement
- * 
- * @author wuzhih
- * 
- */
+/* simple cache pool for implement */
 public interface CachePool {
-
+	/* 放入k-v */
 	public void putIfAbsent(Object key, Object value);
 
+	/* 取出v */
 	public Object get(Object key);
 
+	/* 清空cache */
 	public void clearCache();
 
+	/* 获得统计信息 */
 	public CacheStatic getCacheStatic();
 
+	/* 获得缓存大小 */
 	public long getMaxSize();
 }

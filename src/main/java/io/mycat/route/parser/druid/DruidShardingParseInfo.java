@@ -5,18 +5,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * druid parser result
- * @author wang.dw
- *
- */
+/* druid parser result */
 public class DruidShardingParseInfo {
-	/**
-	 * 一个sql中可能有多个WhereUnit（如子查询中的where可能导致多个）
-	 */
-	private List<WhereUnit> whereUnits = new ArrayList<WhereUnit>();
-	
-	private List<RouteCalculateUnit> routeCalculateUnits = new ArrayList<RouteCalculateUnit>();
+	private List<WhereUnit> whereUnits = new ArrayList<WhereUnit>(); /* 一个sql中可能有多个WhereUnit（如子查询中的where可能导致多个）*/
+	private List<RouteCalculateUnit> routeCalculateUnits = new ArrayList<RouteCalculateUnit>();	/* TODO */
 	
 	/**
 	 * （共享属性）

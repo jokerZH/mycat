@@ -1,9 +1,8 @@
 package io.mycat.sqlengine.mpp;
 
+/* 范围 */
 public class RangeValue {
-	/*
-	 * 左值不包含 右值包含
-	 */
+	/* 左值不包含 右值包含 */
 	public static final Integer NE = 0;
 	public static final Integer EE = 1;
 	public static final Integer EN = 2;

@@ -30,25 +30,20 @@ import net.sf.ehcache.Element;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * encache based cache pool
- * 
- * @author wuzhih
- * 
- */
+/* 基于ehcache实现内存缓存 */
 public class EnchachePool implements CachePool {
-	private static final Logger LOGGER = LoggerFactory
-			.getLogger(EnchachePool.class);
-	private final Cache enCache;
-	private final CacheStatic cacheStati = new CacheStatic();
-    private final String name;
-    private final long maxSize;
+	private static final Logger LOGGER = LoggerFactory.getLogger(EnchachePool.class);
+	private final CacheStatic cacheStati = new CacheStatic();	/* 统计 */
+
+	private final Cache enCache;	/* ehcache缓存 */
+    private final String name;		/* 池子名 */
+    private final long maxSize;		/* 池子大小 */
+
 	public EnchachePool(String name,Cache enCache,long maxSize) {
 		this.enCache = enCache;
 		this.name=name;
 		this.maxSize=maxSize;
 		cacheStati.setMaxSize(this.getMaxSize());
-
 	}
 
 	@Override
@@ -60,7 +55,6 @@ public class EnchachePool implements CachePool {
 				LOGGER.debug(name+" add cache ,key:" + key + " value:" + value);
 			}
 		}
-
 	}
 
 	@Override
@@ -93,14 +87,10 @@ public class EnchachePool implements CachePool {
 
 	@Override
 	public CacheStatic getCacheStatic() {
-		
 		cacheStati.setItemSize(enCache.getSize());
 		return cacheStati;
 	}
 
 	@Override
-	public long getMaxSize() {
-		return maxSize;
-	}
-
+	public long getMaxSize() { return maxSize; }
 }
