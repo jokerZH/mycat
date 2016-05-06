@@ -29,7 +29,7 @@ import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlInsertStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlUpdateStatement;
 import com.alibaba.druid.sql.visitor.SchemaStatVisitor;
 
-/* DruidParser的工厂类 */
+/* 语法解析 DruidParser的工厂类 */
 public class DruidParserFactory
 {
     public static DruidParser create(SchemaConfig schema, SQLStatement statement, SchemaStatVisitor visitor)

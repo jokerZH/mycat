@@ -125,7 +125,7 @@ public class RouterUtil {
 		return tableName;
 	}
 
-    /* 获得Create语句中的表名的起始下标和表名的长度 */
+    /* 获得show create table $tableName 中的表名的起始下标和表名的长度 */
     public static int[]/*表名位置和占位个数*/ getCreateTablePos(String upStmt/*执行语句*/, int start/*开始位置*/) {
 		String token1 = "CREATE ";
 		String token2 = " TABLE ";
@@ -139,7 +139,7 @@ public class RouterUtil {
 		}
 	}
 
-    /* 获得有FROM和IN关键词觉得的表名 */
+    /* 获得有FROM和IN后面的表名 */
     public static int[]/*表名位置和占位个数*/ getSpecPos(String upStmt/*执行语句*/, int start/*开始位置*/) {
 		String token1 = " FROM ";
 		String token2 = " IN ";
@@ -305,17 +305,8 @@ public class RouterUtil {
     }
 
 
-    /**
-     * 获取show语句table名字
-     *
-     * @param stmt
-     *            执行语句
-     * @param repPos
-     *            开始位置和位数
-     * @return 表名
-     * @author AStoneGod
-     */
-    public static String getShowTableName(String stmt, int[] repPos) {
+    /* 获取show语句table名字 */
+    public static String/*表名*/ getShowTableName(String stmt, int[] repPos/*开始位置和位数*/) {
         int startPos = repPos[0];
         int secInd = stmt.indexOf(' ', startPos + 1);
         if (secInd < 0) {
@@ -443,6 +434,7 @@ public class RouterUtil {
     }
 
 
+    /* 将sql发送给dataNodes中的slice执行 */
     public static RouteResultset routeToMultiNode(boolean cache,RouteResultset rrs, Collection<String> dataNodes, String stmt) {
         RouteResultsetNode[] nodes = new RouteResultsetNode[dataNodes.size()];
         int i = 0;
@@ -465,12 +457,14 @@ public class RouterUtil {
         return rrs;
     }
 
-    public static void routeForTableMeta(RouteResultset rrs,
-                                         SchemaConfig schema, String tableName, String sql) {
+    /* 为获得表的meta信息的sql做路由 */
+    public static void routeForTableMeta(RouteResultset rrs, SchemaConfig schema, String tableName, String sql) {
         String dataNode = null;
-        if (isNoSharding(schema,tableName)) {//不分库的直接从schema中获取dataNode
+        if (isNoSharding(schema,tableName)) {
+            // 不分库的直接从schema中获取默认db
             dataNode = schema.getDataNode();
         } else {
+            // 随机获得一个slice
             dataNode = getMetaReadDataNode(schema, tableName);
         }
 
@@ -482,18 +476,8 @@ public class RouterUtil {
         rrs.setNodes(nodes);
     }
 
-    /**
-     * 根据标名随机获取一个节点
-     *
-     * @param schema
-     *            数据库名
-     * @param table
-     *            表名
-     * @return 数据节点
-     * @author mycat
-     */
-    private static String getMetaReadDataNode(SchemaConfig schema,
-                                              String table) {
+    /* 根据表名随机获取一个节点 */
+    private static String/*sliceName*/ getMetaReadDataNode(SchemaConfig schema, String table) {
         // Table名字被转化为大写的，存储在schema
         table = table.toUpperCase();
         String dataNode = null;

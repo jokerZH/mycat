@@ -48,7 +48,7 @@ public class RouteService {
 	private final String HINT_SPLIT = "=";				// 注释中格式是 type=value
 
 	private final CachePool sqlRouteCache;				/* sql和路由结果的缓存 */
-	private final LayerCachePool tableId2DataNodeCache;	/* TODO */
+	private final LayerCachePool tableId2DataNodeCache;	/* 外键的情况,外键值和对应的sliceName的映射关系 */
 
 	public RouteService(CacheService cachService) {
 		sqlRouteCache = cachService.getCachePool("SQLRouteCache");

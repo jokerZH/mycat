@@ -42,7 +42,7 @@ public class SchemaConfig {
     private Set<String/*sliceName*/> allDataNodes;			/* 存放所有db信息 */
 
     private int defaultMaxLimit;		/* 当sql没有limit限制的时候,会自动加上defaultMaxLimit的限制 */
-    private boolean checkSQLSchema;		/* 不支持 dbName.tableName的模式 */
+    private boolean checkSQLSchema;		/* 不支持 dbName.tableName*/
     private Map<String/*join relation ,A.ID=B.PARENT_ID*/, TableConfig/*rootTable*/> joinRel2TableMap = new HashMap<String, TableConfig>(); /* TODO 有join关系的表 if a->b*->c* ,then A is root table */
     private String[] allDataNodeStrArr;					/* allDataNodex的数组形式 */
     private boolean needSupportMultiDBType = false;		/* TODO */

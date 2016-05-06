@@ -12,9 +12,7 @@ import com.alibaba.druid.sql.parser.SQLExprParser;
 import com.alibaba.druid.sql.parser.Token;
 import com.alibaba.druid.util.JdbcConstants;
 
-/**
- * Created by nange on 2015/3/13.
- */
+/* mycat的语法解析,当可能不是mysql的时候使用 */
 public class MycatStatementParser extends MySqlStatementParser
 {
     private static final String LOW_PRIORITY   = "LOW_PRIORITY";

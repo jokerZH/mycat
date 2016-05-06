@@ -101,26 +101,41 @@ public class DruidMycatRouteStrategy extends AbstractRouteStrategy {
 		}
 		return false;
 	}
-	
-	/* 检验不支持的SQLStatement类型 ：不支持的类型直接抛SQLSyntaxErrorException异常 */
-	private void checkUnSupportedStatement(SQLStatement statement) throws SQLSyntaxErrorException {
-		if(statement instanceof MySqlReplaceStatement) {
-			//不支持replace语句
-			throw new SQLSyntaxErrorException(" ReplaceStatement can't be supported,use insert into ...on duplicate key update... instead ");
-		}
-	}
-	
-	/**
-	 * 
-	 */
+
+	/* sql语句是获得系统信息类的sql语句 */
 	@Override
-	public RouteResultset analyseShowSQL(SchemaConfig schema,
-			RouteResultset rrs, String stmt) throws SQLSyntaxErrorException {
+	public RouteResultset routeSystemInfo(SchemaConfig schema, int sqlType, String stmt, RouteResultset rrs) throws SQLSyntaxErrorException {
+		switch(sqlType) {
+			case ServerParse.SHOW:
+				// Show sql语句
+				return analyseShowSQL(schema, rrs, stmt);
+
+			case ServerParse.SELECT:
+				//select @@类的语句
+				if (stmt.contains("@@")) {
+					return analyseDoubleAtSgin(schema, rrs, stmt);
+				}
+				break;
+
+			case ServerParse.DESCRIBE:
+				// describe table
+				int ind = stmt.indexOf(' ');
+				stmt = stmt.trim();
+				return analyseDescrSQL(schema, rrs, stmt, ind + 1);
+		}
+		return null;
+	}
+
+	/* show 类命令的sql语句处理方法 */
+	@Override
+	public RouteResultset analyseShowSQL(SchemaConfig schema, RouteResultset rrs, String stmt) throws SQLSyntaxErrorException {
 		String upStmt = stmt.toUpperCase();
 		int tabInd = upStmt.indexOf(" TABLES");
-		if (tabInd > 0) {// show tables
+		if (tabInd > 0) {
+			// show tables
 			int[] nextPost = RouterUtil.getSpecPos(upStmt, 0);
-			if (nextPost[0] > 0) {// remove db info
+			if (nextPost[0] > 0) {
+				// remove db info
 				int end = RouterUtil.getSpecEndPos(upStmt, tabInd);
 				if (upStmt.indexOf(" FULL") > 0) {
 					stmt = "SHOW FULL TABLES" + stmt.substring(end);
@@ -129,12 +144,15 @@ public class DruidMycatRouteStrategy extends AbstractRouteStrategy {
 				}
 			}
             String defaultNode=  schema.getDataNode();
-            if(!Strings.isNullOrEmpty(defaultNode))
-            {
-                return    RouterUtil.routeToSingleNode(rrs, defaultNode, stmt);
-            }
+            if(!Strings.isNullOrEmpty(defaultNode)) {
+				// 发送给默认slice
+				return RouterUtil.routeToSingleNode(rrs, defaultNode, stmt);
+			}
+
+			// 给所有涉及到的db发送请求
 			return RouterUtil.routeToMultiNode(false, rrs, schema.getMetaDataNodes(), stmt);
 		}
+
 		// show index or column
 		int[] indx = RouterUtil.getSpecPos(upStmt, 0);
 		if (indx[0] > 0) {
@@ -143,16 +161,17 @@ public class DruidMycatRouteStrategy extends AbstractRouteStrategy {
 			String tableName = RouterUtil.getShowTableName(stmt, repPos);
 			// IN DB pattern
 			int[] indx2 = RouterUtil.getSpecPos(upStmt, indx[0] + indx[1] + 1);
-			if (indx2[0] > 0) {// find LIKE OR WHERE
+			if (indx2[0] > 0) {
+				// find LIKE OR WHERE
 				repPos[1] = RouterUtil.getSpecEndPos(upStmt, indx2[0] + indx2[1]);
-
 			}
-			stmt = stmt.substring(0, indx[0]) + " FROM " + tableName
-					+ stmt.substring(repPos[1]);
+			stmt = stmt.substring(0, indx[0]) + " FROM " + tableName + stmt.substring(repPos[1]);
+
+			/* 找到逻辑表的一个slice执行 */
 			RouterUtil.routeForTableMeta(rrs, schema, tableName, stmt);
 			return rrs;
-
 		}
+
 		// show create table tableName
 		int[] createTabInd = RouterUtil.getCreateTablePos(upStmt, 0);
 		if (createTabInd[0] > 0) {
@@ -163,132 +182,19 @@ public class DruidMycatRouteStrategy extends AbstractRouteStrategy {
 				if (ind2 > 0) {
 					tableName = tableName.substring(ind2 + 1);
 				}
+
+				/* 找到逻辑表的一个slice执行 */
 				RouterUtil.routeForTableMeta(rrs, schema, tableName, stmt);
 				return rrs;
 			}
 		}
 
+		/* 随机发送给逻辑DB的一个slice */
 		return RouterUtil.routeToSingleNode(rrs, schema.getRandomDataNode(), stmt);
 	}
-	
-	
-	
-	
 
-	
-	
-//	/**
-//	 * 为一个表进行条件路由
-//	 * @param schema
-//	 * @param tablesAndConditions
-//	 * @param tablesRouteMap
-//	 * @throws SQLNonTransientException
-//	 */
-//	private static RouteResultset findRouteWithcConditionsForOneTable(SchemaConfig schema, RouteResultset rrs,
-//		Map<String, Set<ColumnRoutePair>> conditions, String tableName, String sql) throws SQLNonTransientException {
-//		boolean cache = rrs.isCacheAble();
-//	    //为分库表找路由
-//		tableName = tableName.toUpperCase();
-//		TableConfig tableConfig = schema.getTables().get(tableName);
-//		//全局表或者不分库的表略过（全局表后面再计算）
-//		if(tableConfig.isGlobalTable()) {
-//			return null;
-//		} else {//非全局表
-//			Set<String> routeSet = new HashSet<String>();
-//			String joinKey = tableConfig.getJoinKey();
-//			for(Map.Entry<String, Set<ColumnRoutePair>> condition : conditions.entrySet()) {
-//				String colName = condition.getKey();
-//				//条件字段是拆分字段
-//				if(colName.equals(tableConfig.getPartitionColumn())) {
-//					Set<ColumnRoutePair> columnPairs = condition.getValue();
-//					
-//					for(ColumnRoutePair pair : columnPairs) {
-//						if(pair.colValue != null) {
-//							Integer nodeIndex = tableConfig.getRule().getRuleAlgorithm().calculate(pair.colValue);
-//							if(nodeIndex == null) {
-//								String msg = "can't find any valid datanode :" + tableConfig.getName() 
-//										+ " -> " + tableConfig.getPartitionColumn() + " -> " + pair.colValue;
-//								LOGGER.warn(msg);
-//								throw new SQLNonTransientException(msg);
-//							}
-//							String node = tableConfig.getDataNodes().get(nodeIndex);
-//							if(node != null) {//找到一个路由节点
-//								routeSet.add(node);
-//							}
-//						}
-//						if(pair.rangeValue != null) {
-//							Integer[] nodeIndexs = tableConfig.getRule().getRuleAlgorithm()
-//									.calculateRange(pair.rangeValue.beginValue.toString(), pair.rangeValue.endValue.toString());
-//							for(Integer idx : nodeIndexs) {
-//								String node = tableConfig.getDataNodes().get(idx);
-//								if(node != null) {//找到一个路由节点
-//									routeSet.add(node);
-//								}
-//							}
-//						}
-//					}
-//				} else if(joinKey != null && joinKey.equals(colName)) {
-//					Set<String> dataNodeSet = RouterUtil.ruleCalculate(
-//							tableConfig.getParentTC(), condition.getValue());
-//					if (dataNodeSet.isEmpty()) {
-//						throw new SQLNonTransientException(
-//								"parent key can't find any valid datanode ");
-//					}
-//					if (LOGGER.isDebugEnabled()) {
-//						LOGGER.debug("found partion nodes (using parent partion rule directly) for child table to update  "
-//								+ Arrays.toString(dataNodeSet.toArray()) + " sql :" + sql);
-//					}
-//					if (dataNodeSet.size() > 1) {
-//						return RouterUtil.routeToMultiNode(rrs.isCacheAble(), rrs, schema.getAllDataNodes(), sql);
-//					} else {
-//						rrs.setCacheAble(true);
-//						return RouterUtil.routeToSingleNode(rrs, dataNodeSet.iterator().next(), sql);
-//					}
-//				} else {//条件字段不是拆分字段也不是join字段,略过
-//					continue;
-//					
-//				}
-//			}
-//			return RouterUtil.routeToMultiNode(cache, rrs, routeSet, sql);
-//			
-//		}
-//
-//	}
-
-	public RouteResultset routeSystemInfo(SchemaConfig schema, int sqlType,
-			String stmt, RouteResultset rrs) throws SQLSyntaxErrorException {
-		switch(sqlType){
-		case ServerParse.SHOW:// if origSQL is like show tables
-			return analyseShowSQL(schema, rrs, stmt);
-		case ServerParse.SELECT://if origSQL is like select @@
-			if(stmt.contains("@@")){
-				return analyseDoubleAtSgin(schema, rrs, stmt);
-			}
-			break;
-		case ServerParse.DESCRIBE:// if origSQL is meta SQL, such as describe table
-			int ind = stmt.indexOf(' ');
-			stmt = stmt.trim();
-			return analyseDescrSQL(schema, rrs, stmt, ind + 1);
-		}
-		return null;
-	}
-	
-	/**
-	 * 对Desc语句进行分析 返回数据路由集合
-	 * 
-	 * @param schema
-	 *            数据库名
-	 * @param rrs
-	 *            数据路由集合
-	 * @param stmt
-	 *            执行语句
-	 * @param ind
-	 *            第一个' '的位置
-	 * @return RouteResultset(数据路由集合)
-	 * @author mycat
-	 */
-	private static RouteResultset analyseDescrSQL(SchemaConfig schema,
-			RouteResultset rrs, String stmt, int ind) {
+	/* 对Desc语句进行分析 返回数据路由集合 */
+	private static RouteResultset analyseDescrSQL(SchemaConfig schema, RouteResultset rrs, String stmt, int ind/*第一个' '的位置*/) {
 		final String MATCHED_FEATURE = "DESCRIBE ";
 		final String MATCHED2_FEATURE = "DESC ";
 		int pos = 0;
@@ -328,29 +234,23 @@ public class DruidMycatRouteStrategy extends AbstractRouteStrategy {
 		return rrs;
 	}
 	
-	/**
-	 * 根据执行语句判断数据路由
-	 * 
-	 * @param schema
-	 *            数据库名
-	 * @param rrs
-	 *            数据路由集合
-	 * @param stmt
-	 *            执行sql
-	 * @return RouteResultset数据路由集合
-	 * @throws SQLSyntaxErrorException
-	 * @author mycat
-	 */
-	private RouteResultset analyseDoubleAtSgin(SchemaConfig schema,
-			RouteResultset rrs, String stmt) throws SQLSyntaxErrorException {
+	/* 处理 select @@ 类数据 */
+	private RouteResultset analyseDoubleAtSgin(SchemaConfig schema, RouteResultset rrs, String stmt) throws SQLSyntaxErrorException {
 		String upStmt = stmt.toUpperCase();
 
 		int atSginInd = upStmt.indexOf(" @@");
 		if (atSginInd > 0) {
-			return RouterUtil.routeToMultiNode(false, rrs,
-					schema.getMetaDataNodes(), stmt);
+			return RouterUtil.routeToMultiNode(false, rrs, schema.getMetaDataNodes(), stmt);
 		}
 
 		return RouterUtil.routeToSingleNode(rrs, schema.getRandomDataNode(), stmt);
+	}
+
+	/* 检验不支持的SQLStatement类型 ：不支持的类型直接抛SQLSyntaxErrorException异常 */
+	private void checkUnSupportedStatement(SQLStatement statement) throws SQLSyntaxErrorException {
+		if(statement instanceof MySqlReplaceStatement) {
+			//不支持replace语句
+			throw new SQLSyntaxErrorException(" ReplaceStatement can't be supported,use insert into ...on duplicate key update... instead ");
+		}
 	}
 }

@@ -215,7 +215,7 @@ public class TableConfig {
 	public String getRandomDataNode() {
 		int index = Math.abs(rand.nextInt()) % dataNodes.size();
 		return dataNodes.get(index);
-	}
+
 
 	/* 检测配置 */
     public void checkConfig(){

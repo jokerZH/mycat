@@ -52,17 +52,18 @@ public abstract class AbstractRouteStrategy implements RouteStrategy {
 			rrs.setCacheAble(false);
 		}
 
+		// 设置是否自动提交
 		if (sc != null ) {
 			rrs.setAutocommit(sc.isAutocommit());
 		}
 
-		//ddl create deal
+		// 处理ddl的命令 需要所有都要处理下
 		if(ServerParse.DDL==sqlType){
 			return RouterUtil.routeToDDLNode(rrs, sqlType, stmt,schema);
 		}
 
-		// check if there is sharding in schema
 		if (schema.isNoSharding() && ServerParse.SHOW != sqlType) {
+			// 不是sharding模式
 			rrs = RouterUtil.routeToSingleNode(rrs, schema.getDataNode(), stmt);
 		} else {
 			// sharding模式
@@ -88,6 +89,6 @@ public abstract class AbstractRouteStrategy implements RouteStrategy {
 	/* TODO  */
 	public abstract RouteResultset routeSystemInfo(SchemaConfig schema,int sqlType,String stmt,RouteResultset rrs) throws SQLSyntaxErrorException;
 
-	/* show之类的语句 */
+	/* show语句处理 */
 	public abstract RouteResultset analyseShowSQL(SchemaConfig schema,RouteResultset rrs, String stmt) throws SQLNonTransientException;
 }
