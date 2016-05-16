@@ -94,7 +94,7 @@ public class DruidMycatRouteStrategy extends AbstractRouteStrategy {
 	}
 
 
-
+	/* 判断是否是select语句 */
     private boolean isSelect(SQLStatement statement) {
 		if(statement instanceof SQLSelectStatement) {
 			return true;

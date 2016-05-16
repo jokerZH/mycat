@@ -67,6 +67,7 @@ public class DruidParserFactory
         return parser;
     }
 
+    /* 根据不同的后端类型，创建解析器 */
     private static DruidParser getDruidParserForMultiDB(SchemaConfig schema, SQLStatement statement, SchemaStatVisitor visitor)
     {
         DruidParser parser=null;
@@ -144,6 +145,4 @@ public class DruidParserFactory
         }
         return tables;
     }
-
-
 }

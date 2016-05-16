@@ -67,8 +67,10 @@ public abstract class AbstractRouteStrategy implements RouteStrategy {
 			rrs = RouterUtil.routeToSingleNode(rrs, schema.getDataNode(), stmt);
 		} else {
 			// sharding模式
+			// 是否是一些查询系统数据的语句，那样的话，发送给某些slice就好了
 			RouteResultset returnedSet=routeSystemInfo(schema, sqlType, stmt, rrs);
 			if(returnedSet==null){
+				// 处理一般流程
 				rrs = routeNormalSqlWithAST(schema, stmt, rrs, charset, cachePool);
 			}
 		}
