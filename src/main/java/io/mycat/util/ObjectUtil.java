@@ -232,6 +232,7 @@ public final class ObjectUtil {
     }
 
 
+    /* 在两个obj之间copy属性 */
     public static void copyProperties(Object fromObj, Object toObj) {
         Class<? extends Object> fromClass = fromObj.getClass();
         Class<? extends Object> toClass = toObj.getClass();

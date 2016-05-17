@@ -69,6 +69,7 @@ public class RouteService {
 		String cacheKey = null;
 
 		if (sqlType == ServerParse.SELECT) {
+			// 查看路由缓存
 			cacheKey = schema.getName() + stmt;			
 			rrs = (RouteResultset) sqlRouteCache.get(cacheKey);
 			if (rrs != null) {

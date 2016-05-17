@@ -1017,11 +1017,7 @@ public class RouterUtil {
         return false;
     }
 
-    /**
-     * 判断条件是否永真
-     * @param expr
-     * @return
-     */
+    /* 判断条件是否永真 */
     public static boolean isConditionAlwaysTrue(SQLExpr expr) {
         Object o = WallVisitorUtils.getValue(expr);
         if(Boolean.TRUE.equals(o)) {
@@ -1030,11 +1026,7 @@ public class RouterUtil {
         return false;
     }
 
-    /**
-     * 判断条件是否永假的
-     * @param expr
-     * @return
-     */
+    /* 判断条件是否永假的 */
     public static boolean isConditionAlwaysFalse(SQLExpr expr) {
         Object o = WallVisitorUtils.getValue(expr);
         if(Boolean.FALSE.equals(o)) {

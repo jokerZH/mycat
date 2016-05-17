@@ -217,6 +217,7 @@ public final class RouteResultset implements Serializable {
     public void setCacheAble(boolean cacheAble) { this.cacheAble = cacheAble; }
     public int getSqlType() { return sqlType; }
     public void setLimitStart(int limitStart) { this.limitStart = limitStart; }
+    public int getLimitStart() { return limitStart; }
     public String getPrimaryKey() { return primaryKey; }
     public String getStatement() { return statement; }
     public RouteResultsetNode[] getNodes() { return nodes; }

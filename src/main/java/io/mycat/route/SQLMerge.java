@@ -29,13 +29,13 @@ import java.io.Serializable;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/* TODO */
+/* seelct sql语句负责处理相关 */
 public class SQLMerge implements Serializable {
 	private LinkedHashMap<String, Integer> orderByCols;	/* order的字段名, 有现有顺序? */
 	private HavingCols havingCols;						/* sql中存在的字段名 */
-	private Map<String, Integer> mergeCols;				/* TODO */
+	private Map<String/*聚合函数名*/, Integer/*类型*/> mergeCols;				/* 聚合函数列表 */
 	private String[] groupByCols;						/* group by 的字段名 */
-	private boolean hasAggrColumn;						/* TODO */
+	private boolean hasAggrColumn;						/* 是否有聚合函数 如count sum等 */
 
 	public LinkedHashMap<String, Integer> getOrderByCols() { return orderByCols; }
 	public void setOrderByCols(LinkedHashMap<String, Integer> orderByCols) { this.orderByCols = orderByCols; }

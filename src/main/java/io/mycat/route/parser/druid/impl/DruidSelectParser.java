@@ -53,16 +53,17 @@ import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlUnionQuery;
 import com.alibaba.druid.util.JdbcConstants;
 import com.alibaba.druid.wall.spi.WallVisitorUtils;
 
+/* mysql的select */
 public class DruidSelectParser extends DefaultDruidParser {
-
-
     protected boolean isNeedParseOrderAgg=true;
 
     @Override
     public void statementParse(SchemaConfig schema, RouteResultset rrs, SQLStatement stmt) {
         SQLSelectStatement selectStmt = (SQLSelectStatement)stmt;
         SQLSelectQuery sqlSelectQuery = selectStmt.getSelect().getQuery();
+
         if(sqlSelectQuery instanceof MySqlSelectQueryBlock) {
+            // 单个select语句
             MySqlSelectQueryBlock mysqlSelectQuery = (MySqlSelectQueryBlock)selectStmt.getSelect().getQuery();
 
             parseOrderAggGroupMysql(schema, stmt,rrs, mysqlSelectQuery);
@@ -73,18 +74,14 @@ public class DruidSelectParser extends DefaultDruidParser {
             }
 
         } else if (sqlSelectQuery instanceof MySqlUnionQuery) {
-//			MySqlUnionQuery unionQuery = (MySqlUnionQuery)sqlSelectQuery;
-//			MySqlSelectQueryBlock left = (MySqlSelectQueryBlock)unionQuery.getLeft();
-//			MySqlSelectQueryBlock right = (MySqlSelectQueryBlock)unionQuery.getLeft();
-//			System.out.println();
+            // 多个select语句联合 FIXME
         }
     }
+
+    /* TODO */
     protected void parseOrderAggGroupMysql(SchemaConfig schema, SQLStatement stmt, RouteResultset rrs, MySqlSelectQueryBlock mysqlSelectQuery)
     {
-        if(!isNeedParseOrderAgg)
-        {
-            return;
-        }
+        if(!isNeedParseOrderAgg)  { return; }
         Map<String, String> aliaColumns = parseAggGroupCommon(schema, stmt, rrs, mysqlSelectQuery);
 
         //setOrderByCols
@@ -94,28 +91,35 @@ public class DruidSelectParser extends DefaultDruidParser {
         }
         isNeedParseOrderAgg=false;
     }
+
+    /* 解析聚合函数, Distinct, groupBy的情况 */
     protected Map<String, String> parseAggGroupCommon(SchemaConfig schema, SQLStatement stmt, RouteResultset rrs, SQLSelectQueryBlock mysqlSelectQuery)
     {
-        Map<String, String> aliaColumns = new HashMap<String, String>();
-        Map<String, Integer> aggrColumns = new HashMap<String, Integer>();
-        List<SQLSelectItem> selectList = mysqlSelectQuery.getSelectList();
+        Map<String, String> aliaColumns = new HashMap<String, String>();    /* 字段名 假名和真名的映射关系 */
+        Map<String/*聚合函数名*/, Integer/*聚合函数类型*/> aggrColumns = new HashMap<String, Integer>();
+
         boolean isNeedChangeSql=false;
+
+        // 获得字段名列表
+        List<SQLSelectItem> selectList = mysqlSelectQuery.getSelectList();
         int size = selectList.size();
-        boolean isDistinct=mysqlSelectQuery.getDistionOption()==2;
         for (int i = 0; i < size; i++)
         {
             SQLSelectItem item = selectList.get(i);
 
-            if (item.getExpr() instanceof SQLAggregateExpr)
-            {
+            if (item.getExpr() instanceof SQLAggregateExpr) {
+                // 聚合函数 如sum min max等
                 SQLAggregateExpr expr = (SQLAggregateExpr) item.getExpr();
                 String method = expr.getMethodName();
 
                 //只处理有别名的情况，无别名添加别名，否则某些数据库会得不到正确结果处理
                 int mergeType = MergeCol.getMergeType(method);
-                if (MergeCol.MERGE_AVG == mergeType&&isRoutMultiNode(schema,rrs))
-                {    //跨分片avg需要特殊处理，直接avg结果是不对的
+                if (MergeCol.MERGE_AVG == mergeType&&isRoutMultiNode(schema,rrs)) {
+                    //跨分片avg需要特殊处理，直接avg结果是不对的 增加sum和Count,然后在本地计算avg
+
                     String colName = item.getAlias() != null ? item.getAlias() : method + i;
+
+                    // add sum
                     SQLSelectItem sum =new SQLSelectItem();
                     String sumColName = colName + "SUM";
                     sum.setAlias(sumColName);
@@ -127,6 +131,7 @@ public class DruidSelectParser extends DefaultDruidParser {
                     selectList.set(i, sum);
                     aggrColumns.put(sumColName, MergeCol.MERGE_SUM);
 
+                    // add count
                     SQLSelectItem count =new SQLSelectItem();
                     String countColName = colName + "COUNT";
                     count.setAlias(countColName);
@@ -141,44 +146,46 @@ public class DruidSelectParser extends DefaultDruidParser {
                     isNeedChangeSql=true;
                     aggrColumns.put(colName, mergeType);
                     rrs.setHasAggrColumn(true);
-                } else
-                if (MergeCol.MERGE_UNSUPPORT != mergeType)
-                {
-                    if (item.getAlias() != null && item.getAlias().length() > 0)
-                    {
+
+                } else if (MergeCol.MERGE_UNSUPPORT != mergeType) {
+                    // 非avg的聚合函数
+                    if (item.getAlias() != null && item.getAlias().length() > 0) {
+                        // 有别名
                         aggrColumns.put(item.getAlias(), mergeType);
-                    } else
-                    {   //如果不加，jdbc方式时取不到正确结果   ;修改添加别名
+                    } else {
+                        // 修改添加别名  如果不加，jdbc方式时取不到正确结果
                         item.setAlias(method + i);
                         aggrColumns.put(method + i, mergeType);
                         isNeedChangeSql=true;
                     }
                     rrs.setHasAggrColumn(true);
                 }
-            } else
-            {
-                if (!(item.getExpr() instanceof SQLAllColumnExpr))
-                {
+            } else {
+                if (!(item.getExpr() instanceof SQLAllColumnExpr)) {
+                    // 不是 select * from...
                     String alia = item.getAlias();
                     String field = getFieldName(item);
-                    if (alia == null)
-                    {
+
+                    if (alia == null) {
                         alia = field;
                     }
+
                     aliaColumns.put(field, alia);
                 }
             }
 
         }
+
         if(aggrColumns.size() > 0) {
             rrs.setMergeCols(aggrColumns);
         }
 
-        //通过优化转换成group by来实现
-        if(isDistinct)
-        {
+        // 处理distinct关键字
+        boolean isDistinct=mysqlSelectQuery.getDistionOption()==2;
+        if(isDistinct) {
+            // 通过优化转换成group by来实现  FIXME distinct消除相同项咋弄呢
             mysqlSelectQuery.setDistionOption(0);
-            SQLSelectGroupByClause   groupBy=new SQLSelectGroupByClause();
+            SQLSelectGroupByClause groupBy = new SQLSelectGroupByClause();
             for (String fieldName : aliaColumns.keySet())
             {
                 groupBy.addItem(new SQLIdentifierExpr(fieldName));
@@ -188,7 +195,7 @@ public class DruidSelectParser extends DefaultDruidParser {
         }
 
 
-        //setGroupByCols
+        // setGroupByCols
         if(mysqlSelectQuery.getGroupBy() != null) {
             List<SQLExpr> groupByItems = mysqlSelectQuery.getGroupBy().getItems();
             String[] groupByCols = buildGroupByCols(groupByItems,aliaColumns);
@@ -198,8 +205,7 @@ public class DruidSelectParser extends DefaultDruidParser {
         }
 
 
-        if (isNeedChangeSql)
-        {
+        if (isNeedChangeSql) {
             String sql = stmt.toString();
             rrs.changeNodeSqlAfterAddLimit(schema,getCurentDbType(),sql,0,-1, false);
             getCtx().setSql(sql);
@@ -551,23 +557,23 @@ public class DruidSelectParser extends DefaultDruidParser {
         }
     }
 
-    private String[] buildGroupByCols(List<SQLExpr> groupByItems,Map<String, String> aliaColumns) {
+    /* 获得groupBy中的字段值*/
+    private String[] buildGroupByCols(List<SQLExpr> groupByItems/*groupBy的字段值*/, Map<String, String> aliaColumns/*别名映射*/) {
         String[] groupByCols = new String[groupByItems.size()];
         for(int i= 0; i < groupByItems.size(); i++) {
             SQLExpr sqlExpr = groupByItems.get(i);
             String column;
-            if(sqlExpr instanceof SQLIdentifierExpr )
-            {
+            if(sqlExpr instanceof SQLIdentifierExpr ) {
                 column=((SQLIdentifierExpr) sqlExpr).getName();
-            } else
-            {
+
+            } else {
                 SQLExpr expr = ((MySqlSelectGroupByExpr) sqlExpr).getExpr();
 
-                if (expr instanceof SQLName)
-                {
-                    column = StringUtil.removeBackquote(((SQLName) expr).getSimpleName());//不要转大写 2015-2-10 sohudo StringUtil.removeBackquote(expr.getSimpleName().toUpperCase());
-                } else
-                {
+                if (expr instanceof SQLName) {
+                    //不要转大写 2015-2-10 sohudo StringUtil.removeBackquote(expr.getSimpleName().toUpperCase());
+                    column = StringUtil.removeBackquote(((SQLName) expr).getSimpleName());
+
+                } else {
                     column = StringUtil.removeBackquote(expr.toString());
                 }
             }

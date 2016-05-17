@@ -31,11 +31,11 @@ import com.alibaba.druid.stat.TableStat.Column;
 import com.alibaba.druid.stat.TableStat.Condition;
 import com.alibaba.druid.stat.TableStat.Mode;
 
-/* Druid解析器中用来从ast语法中提取表名、条件、字段等的vistor */
+/* Druid解析器中用来从ast语法中提取表名、条件、字段等的vistor, 主要获得逻辑表达式中的操作,以or操作为分隔符号 */
 public class MycatSchemaStatVisitor extends MySqlSchemaStatVisitor {
-	private boolean hasOrCondition = false;
-	private List<WhereUnit> whereUnits = new CopyOnWriteArrayList<WhereUnit>();
-	private List<WhereUnit> storedwhereUnits = new CopyOnWriteArrayList<WhereUnit>();
+	private boolean hasOrCondition = false;	/* 有or逻辑 */
+	private List<WhereUnit> whereUnits = new CopyOnWriteArrayList<WhereUnit>();			/* 当前Where的表达式,根据or切分  */
+	private List<WhereUnit> storedwhereUnits = new CopyOnWriteArrayList<WhereUnit>();	/* 切分好的where表达式 */
 	
 	private void reset() {
 		this.conditions.clear();
@@ -52,6 +52,7 @@ public class MycatSchemaStatVisitor extends MySqlSchemaStatVisitor {
         return true;
     }
 
+	/* 处理between */
     @Override
     public boolean visit(SQLBetweenExpr x) {
         String begin = null;
@@ -73,6 +74,7 @@ public class MycatSchemaStatVisitor extends MySqlSchemaStatVisitor {
             return true;
         }
 
+		// 保存结果的
         Condition condition = null;
         for (Condition item : this.getConditions()) {
             if (item.getColumn().equals(column) && item.getOperator().equals("between")) {
@@ -96,6 +98,7 @@ public class MycatSchemaStatVisitor extends MySqlSchemaStatVisitor {
         return true;
     }
 
+	/* 获得表达式中字段的表明和字段名 */
     @Override
     protected Column getColumn(SQLExpr expr) {
         Map<String, String> aliasMap = getAliasMap();
@@ -154,13 +157,16 @@ public class MycatSchemaStatVisitor extends MySqlSchemaStatVisitor {
             return new Column("UNKNOWN", column);
         }
 
+		/* A between B and C */
         if(expr instanceof SQLBetweenExpr) {
+			// 查看Ａ是否是一个字段,是则返回, 否则返回null
             SQLBetweenExpr betweenExpr = (SQLBetweenExpr)expr;
 
             if(betweenExpr.getTestExpr() != null) {
                 String tableName = null;
                 String column = null;
-                if(betweenExpr.getTestExpr() instanceof SQLPropertyExpr) {//字段带别名的
+                if(betweenExpr.getTestExpr() instanceof SQLPropertyExpr) {
+					//字段带别名的
                     tableName = ((SQLIdentifierExpr)((SQLPropertyExpr) betweenExpr.getTestExpr()).getOwner()).getName();
                     column = ((SQLPropertyExpr) betweenExpr.getTestExpr()).getName();
 					SQLObject query = this.subQueryMap.get(tableName);
@@ -168,10 +174,13 @@ public class MycatSchemaStatVisitor extends MySqlSchemaStatVisitor {
 						if (aliasMap.containsKey(tableName)) {
 							tableName = aliasMap.get(tableName);
 						}
+						// 返回表明 字段名
 						return new Column(tableName, column);
 					}
+					// 跟子查询相关
                     return handleSubQueryColumn(tableName, column);
                 } else if(betweenExpr.getTestExpr() instanceof SQLIdentifierExpr) {
+					// 一般的字段
                     column = ((SQLIdentifierExpr) betweenExpr.getTestExpr()).getName();
                     //字段不带别名的,此处如果是多表，容易出现ambiguous，
                     //不知道这个字段是属于哪个表的,fdbparser用了defaultTable，即join语句的leftTable
@@ -190,20 +199,47 @@ public class MycatSchemaStatVisitor extends MySqlSchemaStatVisitor {
                     return new Column(table, column);
                 }
             }
-
-
         }
+
+
         return null;
     }
 
-    /**
-     * 从between语句中获取字段所属的表名。
-     * 对于容易出现ambiguous的（字段不知道到底属于哪个表），实际应用中必须使用别名来避免歧义
-     * @param betweenExpr
-     * @param column
-     * @return
-     */
-    private String getOwnerTableName(SQLBetweenExpr betweenExpr,String column) {
+    @Override
+    public boolean visit(MySqlDeleteStatement x) {
+        setAliasMap();
+
+        setMode(x, Mode.Delete);
+
+        accept(x.getFrom());
+        accept(x.getUsing());
+        x.getTableSource().accept(this);
+
+        if (x.getTableSource() instanceof SQLExprTableSource) {
+            SQLName tableName = (SQLName) ((SQLExprTableSource) x.getTableSource()).getExpr();
+            String ident = tableName.toString();
+            setCurrentTable(x, ident);
+
+            TableStat stat = this.getTableStat(ident,ident);
+            stat.incrementDeleteCount();
+        }
+
+        accept(x.getWhere());
+
+        accept(x.getOrderBy());
+        accept(x.getLimit());
+
+        return false;
+    }
+
+    @Override
+    public void endVisit(MySqlDeleteStatement x) {}
+
+
+
+
+    /* 从between语句中获取字段所属的表名 对于容易出现ambiguous的（字段不知道到底属于哪个表），实际应用中必须使用别名来避免歧义 */
+    private String getOwnerTableName(SQLBetweenExpr betweenExpr/*between的结构体*/,String column/*字段名*/) {
         if(tableStats.size() == 1) {//只有一个表，直接返回这一个表名
             return tableStats.keySet().iterator().next().getName();
         } else if(tableStats.size() == 0) {//一个表都没有，返回空串
@@ -244,7 +280,8 @@ public class MycatSchemaStatVisitor extends MySqlSchemaStatVisitor {
         }
         return "";
     }
-    
+
+	/* 处理二元操作 */
     @Override
 	public boolean visit(SQLBinaryOpExpr x) {
         x.getLeft().setParent(x);
@@ -262,6 +299,7 @@ public class MycatSchemaStatVisitor extends MySqlSchemaStatVisitor {
             case BooleanOr:
             	//永真条件，where条件抛弃
             	if(!RouterUtil.isConditionAlwaysTrue(x)) {
+					// 将or相关的逻辑的结构合并起来,构建成一个WhereUnit结构
             		hasOrCondition = true;
             		
             		WhereUnit whereUnit = null;
@@ -290,10 +328,27 @@ public class MycatSchemaStatVisitor extends MySqlSchemaStatVisitor {
         }
         return true;
     }
-	
-	/**
-	 * 分解条件
-	 */
+
+	/* TODO */
+	@Override
+    public boolean visit(SQLAlterTableStatement x) {
+        String tableName = x.getName().toString();
+        TableStat stat = getTableStat(tableName,tableName);
+        stat.incrementAlterCount();
+
+        setCurrentTable(x, tableName);
+
+        for (SQLAlterTableItem item : x.getItems()) {
+            item.setParent(x);
+            item.accept(this);
+        }
+
+        return false;
+    }
+
+
+
+	/* 分解条件 */
 	public List<List<Condition>> splitConditions() {
 		//按照or拆分
 		for(WhereUnit whereUnit : whereUnits) {
@@ -313,18 +368,19 @@ public class MycatSchemaStatVisitor extends MySqlSchemaStatVisitor {
 		return mergedConditions();
 	}
 	
-	/**
-	 * 循环寻找子WhereUnit（实际是嵌套的or）
-	 * @param whereUnitList
-	 */
+	/* 循环寻找子WhereUnit（实际是嵌套的or） TODO */
 	private void loopFindSubWhereUnit(List<WhereUnit> whereUnitList) {
 		List<WhereUnit> subWhereUnits = new ArrayList<WhereUnit>();
+
 		for(WhereUnit whereUnit : whereUnitList) {
 			if(whereUnit.getSplitedExprList().size() > 0) {
 				List<SQLExpr> removeSplitedList = new ArrayList<SQLExpr>();
+
 				for(SQLExpr sqlExpr : whereUnit.getSplitedExprList()) {
+                    // TODO
 					reset();
 					if(isExprHasOr(sqlExpr)) {
+                        // 其中有or操作
 						removeSplitedList.add(sqlExpr);
 						WhereUnit subWhereUnit = this.whereUnits.get(0);
 						splitUntilNoOr(subWhereUnit);
@@ -344,12 +400,14 @@ public class MycatSchemaStatVisitor extends MySqlSchemaStatVisitor {
 			loopFindSubWhereUnit(subWhereUnits);
 		}
 	}
-	
+
+    /* 判断expr中是否有or操作 */
 	private boolean isExprHasOr(SQLExpr expr) {
 		expr.accept(this);
 		return hasOrCondition;
 	}
-	
+
+    /* 将多个WhereUnit的二元操作合并  */
 	private List<List<Condition>> mergedConditions() {
 		if(storedwhereUnits.size() == 0) {
 			return new ArrayList<List<Condition>>();
@@ -358,13 +416,9 @@ public class MycatSchemaStatVisitor extends MySqlSchemaStatVisitor {
 			mergeOneWhereUnit(whereUnit);
 		}
 		return getMergedConditionList(storedwhereUnits);
-		
 	}
 	
-	/**
-	 * 一个WhereUnit内递归
-	 * @param whereUnit
-	 */
+	/* 将一个WhereUnit中的Condition存放到它的conditionList中  */
 	private void mergeOneWhereUnit(WhereUnit whereUnit) {
 		if(whereUnit.getSubWhereUnit().size() > 0) {
 			for(WhereUnit sub : whereUnit.getSubWhereUnit()) {
@@ -392,10 +446,7 @@ public class MycatSchemaStatVisitor extends MySqlSchemaStatVisitor {
 		}
 	}
 	
-	/**
-	 * 条件合并：多个WhereUnit中的条件组合
-	 * @return
-	 */
+	/* 条件合并：多个WhereUnit中的条件组合Condition */
 	private List<List<Condition>> getMergedConditionList(List<WhereUnit> whereUnitList) {
 		List<List<Condition>> mergedConditionList = new ArrayList<List<Condition>>();
 		if(whereUnitList.size() == 0) {
@@ -409,12 +460,7 @@ public class MycatSchemaStatVisitor extends MySqlSchemaStatVisitor {
 		return mergedConditionList;
 	}
 	
-	/**
-	 * 两个list中的条件组合
-	 * @param list1
-	 * @param list2
-	 * @return
-	 */
+	/* 两个list中的条件组合 */
 	private List<List<Condition>> merge(List<List<Condition>> list1, List<List<Condition>> list2) {
 		if(list1.size() == 0) {
 			return list2;
@@ -433,13 +479,16 @@ public class MycatSchemaStatVisitor extends MySqlSchemaStatVisitor {
 		}
 		return retList;
 	}
-	
+
+    /* 将whereUnit中的二元操作存放在conditions中 */
 	private void getConditionsFromWhereUnit(WhereUnit whereUnit) {
+        // 保存各个or相关的二元操作
 		List<List<Condition>> retList = new ArrayList<List<Condition>>();
+
 		//or语句外层的条件:如where condition1 and (condition2 or condition3),condition1就会在外层条件中,因为之前提取
 		List<Condition> outSideCondition = new ArrayList<Condition>();
-//		stashOutSideConditions();
 		outSideCondition.addAll(conditions);
+
 		this.conditions.clear();
 		for(SQLExpr sqlExpr : whereUnit.getSplitedExprList()) {
 			sqlExpr.accept(this);
@@ -456,86 +505,44 @@ public class MycatSchemaStatVisitor extends MySqlSchemaStatVisitor {
 		}
 	}
 	
-	/**
-	 * 递归拆分OR
-	 * 
-	 * @param whereUnit
-	 * TODO:考虑嵌套or语句，条件中有子查询、 exists等很多种复杂情况是否能兼容
-	 */
+	/* 递归拆分OR TODO:考虑嵌套or语句，条件中有子查询、 exists等很多种复杂情况是否能兼容 */
 	private void splitUntilNoOr(WhereUnit whereUnit) {
 		if(whereUnit.isFinishedParse()) {
 			if(whereUnit.getSubWhereUnit().size() > 0) {
 				for(int i = 0; i < whereUnit.getSubWhereUnit().size(); i++) {
+                    // 往下递归的拆解
 					splitUntilNoOr(whereUnit.getSubWhereUnit().get(i));
 				}
-			} 
+			}
 		} else {
+            // TODO 难道底层的whereUnit都是没有解析完成的?
 			SQLBinaryOpExpr expr = whereUnit.getCanSplitExpr();
 			if(expr.getOperator() == SQLBinaryOperator.BooleanOr) {
-//				whereUnit.addSplitedExpr(expr.getRight());
+                // 把右操作放入
 				addExprIfNotFalse(whereUnit, expr.getRight());
+
 				if(expr.getLeft() instanceof SQLBinaryOpExpr) {
+                    // 二元表达式的左表达式还是一个二元操作
 					whereUnit.setCanSplitExpr((SQLBinaryOpExpr)expr.getLeft());
+                    // 递归的切分
 					splitUntilNoOr(whereUnit);
 				} else {
+                    // 把左操作放入
 					addExprIfNotFalse(whereUnit, expr.getLeft());
 				}
 			} else {
+                // 不是or操作,直接放入
 				addExprIfNotFalse(whereUnit, expr);
 				whereUnit.setFinishedParse(true);
 			}
 		}
     }
 
+    /* 将表达式放入whereUnit的切分完成队列中 */
 	private void addExprIfNotFalse(WhereUnit whereUnit, SQLExpr expr) {
-		//非永假条件加入路由计算
 		if(!RouterUtil.isConditionAlwaysFalse(expr)) {
+			//非永假条件加入路由计算
 			whereUnit.addSplitedExpr(expr);
 		}
 	}
-	
-	@Override
-    public boolean visit(SQLAlterTableStatement x) {
-        String tableName = x.getName().toString();
-        TableStat stat = getTableStat(tableName,tableName);
-        stat.incrementAlterCount();
-
-        setCurrentTable(x, tableName);
-
-        for (SQLAlterTableItem item : x.getItems()) {
-            item.setParent(x);
-            item.accept(this);
-        }
-
-        return false;
-    }
-	
-	// DUAL
-    public boolean visit(MySqlDeleteStatement x) {
-        setAliasMap();
-
-        setMode(x, Mode.Delete);
-
-        accept(x.getFrom());
-        accept(x.getUsing());
-        x.getTableSource().accept(this);
-
-        if (x.getTableSource() instanceof SQLExprTableSource) {
-            SQLName tableName = (SQLName) ((SQLExprTableSource) x.getTableSource()).getExpr();
-            String ident = tableName.toString();
-            setCurrentTable(x, ident);
-
-            TableStat stat = this.getTableStat(ident,ident);
-            stat.incrementDeleteCount();
-        }
-
-        accept(x.getWhere());
-
-        accept(x.getOrderBy());
-        accept(x.getLimit());
-
-        return false;
-    }
-    
-    public void endVisit(MySqlDeleteStatement x) {}
 }

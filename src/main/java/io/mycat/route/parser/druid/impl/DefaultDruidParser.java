@@ -21,41 +21,25 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 对SQLStatement解析
- * 主要通过visitor解析和statement解析：有些类型的SQLStatement通过visitor解析足够了，
- *  有些只能通过statement解析才能得到所有信息
- *  有些需要通过两种方式解析才能得到完整信息
- */
+/* 对SQLStatement解析 */
 public class DefaultDruidParser implements DruidParser {
 	protected static final Logger LOGGER = LoggerFactory.getLogger(DefaultDruidParser.class);
 
-	/* 解析得到的结果 */
-	protected DruidShardingParseInfo ctx;
+	protected DruidShardingParseInfo ctx;	/* 解析得到的结果 */
+	private Map<String,String> tableAliasMap = new HashMap<String,String>();	/* 表明映射关系 */
+	private List<Condition> conditions = new ArrayList<Condition>();	/* 逻辑表达式的对象 */
 	
-	private Map<String,String> tableAliasMap = new HashMap<String,String>();
 
-	private List<Condition> conditions = new ArrayList<Condition>();
-	
-	public Map<String, String> getTableAliasMap() {
-		return tableAliasMap;
-	}
-
-	public List<Condition> getConditions() {
-		return conditions;
-	}
-	
-	/**
-	 * 使用MycatSchemaStatVisitor解析,得到tables、tableAliasMap、conditions等
-	 * @param schema
-	 * @param stmt
-	 */
+	/* 使用MycatSchemaStatVisitor解析,得到tables、tableAliasMap、conditions等 */
 	public void parser(SchemaConfig schema, RouteResultset rrs, SQLStatement stmt, String originSql,LayerCachePool cachePool,MycatSchemaStatVisitor schemaStatVisitor) throws SQLNonTransientException {
 		ctx = new DruidShardingParseInfo();
-		//设置为原始sql，如果有需要改写sql的，可以通过修改SQLStatement中的属性，然后调用SQLStatement.toString()得到改写的sql
+
+		//设置为原始sql
 		ctx.setSql(originSql);
+
 		//通过visitor解析
 		visitorParse(rrs,stmt,schemaStatVisitor);
+
 		//通过Statement解析
 		statementParse(schema, rrs, stmt);
 		
@@ -63,54 +47,37 @@ public class DefaultDruidParser implements DruidParser {
 		changeSql(schema, rrs, stmt,cachePool);
 	}
 	
-	/**
-	 * 子类可覆盖（如果visitorParse解析得不到表名、字段等信息的，就通过覆盖该方法来解析）
-	 * 子类覆盖该方法一般是将SQLStatement转型后再解析（如转型为MySqlInsertStatement）
-	 */
+	/* 通过satement的方式获得sql信息,子类通过覆盖使用 */
 	@Override
-	public void statementParse(SchemaConfig schema, RouteResultset rrs, SQLStatement stmt) throws SQLNonTransientException {
-		
-	}
+	public void statementParse(SchemaConfig schema, RouteResultset rrs, SQLStatement stmt) throws SQLNonTransientException { }
 	
-	/**
-	 * 改写sql：如insert是
-	 */
 	@Override
-	public void changeSql(SchemaConfig schema, RouteResultset rrs,
-			SQLStatement stmt,LayerCachePool cachePool) throws SQLNonTransientException {
-		
-	}
+	/* 改写sql */
+	public void changeSql(SchemaConfig schema, RouteResultset rrs, SQLStatement stmt,LayerCachePool cachePool) throws SQLNonTransientException { }
 
-	/**
-	 * 子类可覆盖（如果该方法解析得不到表名、字段等信息的，就覆盖该方法，覆盖成空方法，然后通过statementPparse去解析）
-	 * 通过visitor解析：有些类型的Statement通过visitor解析得不到表名、
-	 * @param stmt
-	 */
 	@Override
+	/* 通过visitor获得sql中的信息 */
 	public void visitorParse(RouteResultset rrs, SQLStatement stmt,MycatSchemaStatVisitor visitor) throws SQLNonTransientException{
-
 		stmt.accept(visitor);
 		
 		List<List<Condition>> mergedConditionList = new ArrayList<List<Condition>>();
-		if(visitor.hasOrCondition()) {//包含or语句
-			//TODO
-			//根据or拆分
+		if(visitor.hasOrCondition()) {
+			// 包含or语句 根据or拆分
 			mergedConditionList = visitor.splitConditions();
-		} else {//不包含OR语句
+		} else {
+			//不包含OR语句
 			mergedConditionList.add(visitor.getConditions());
 		}
 		
 		if(visitor.getAliasMap() != null) {
+			// 有别名存在
 			for(Map.Entry<String, String> entry : visitor.getAliasMap().entrySet()) {
 				String key = entry.getKey();
 				String value = entry.getValue();
-				if(key != null && key.indexOf("`") >= 0) {
-					key = key.replaceAll("`", "");
-				}
-				if(value != null && value.indexOf("`") >= 0) {
-					value = value.replaceAll("`", "");
-				}
-				//表名前面带database的，去掉
+				if(key != null && key.indexOf("`") >= 0) { key = key.replaceAll("`", ""); }
+				if(value != null && value.indexOf("`") >= 0) { value = value.replaceAll("`", ""); }
+
+				// 表名前面带database的，去掉
 				if(key != null) {
 					int pos = key.indexOf(".");
 					if(pos> 0) {
@@ -126,12 +93,15 @@ public class DefaultDruidParser implements DruidParser {
 			}
 			ctx.setTableAliasMap(tableAliasMap);
 		}
+
 		ctx.setRouteCalculateUnits(this.buildRouteCalculateUnits(visitor, mergedConditionList));
 	}
-	
+
+	/* 将sql语句中各个表达式转化成各个字段的范围 */
 	private List<RouteCalculateUnit> buildRouteCalculateUnits(SchemaStatVisitor visitor, List<List<Condition>> conditionList) {
 		List<RouteCalculateUnit> retList = new ArrayList<RouteCalculateUnit>();
-		//遍历condition ，找分片字段
+
+		// 遍历condition ，找分片字段
 		for(int i = 0; i < conditionList.size(); i++) {
 			RouteCalculateUnit routeCalculateUnit = new RouteCalculateUnit();
 			for(Condition condition : conditionList.get(i)) {
@@ -142,18 +112,21 @@ public class DefaultDruidParser implements DruidParser {
 				if(checkConditionValues(values)) {
 					String columnName = StringUtil.removeBackquote(condition.getColumn().getName().toUpperCase());
 					String tableName = StringUtil.removeBackquote(condition.getColumn().getTable().toUpperCase());
-					if(visitor.getAliasMap() != null && visitor.getAliasMap().get(condition.getColumn().getTable()) == null) {//子查询的别名条件忽略掉,不参数路由计算，否则后面找不到表
+					if(visitor.getAliasMap() != null && visitor.getAliasMap().get(condition.getColumn().getTable()) == null) {
+						// 子查询的别名条件忽略掉,不参数路由计算，否则后面找不到表
 						continue;
 					}
 					
 					String operator = condition.getOperator();
 					
-					//只处理between ,in和=3中操作符
+					//只处理between ,in和=
 					if(operator.equals("between")) {
 						RangeValue rv = new RangeValue(values.get(0), values.get(1), RangeValue.EE);
-								routeCalculateUnit.addShardingExpr(tableName.toUpperCase(), columnName, rv);
-					} else if(operator.equals("=") || operator.toLowerCase().equals("in")){ //只处理=号和in操作符,其他忽略
-								routeCalculateUnit.addShardingExpr(tableName.toUpperCase(), columnName, values.toArray());
+						routeCalculateUnit.addShardingExpr(tableName.toUpperCase(), columnName, rv);
+
+					} else if(operator.equals("=") || operator.toLowerCase().equals("in")){
+						//只处理=号和in操作符,其他忽略
+						routeCalculateUnit.addShardingExpr(tableName.toUpperCase(), columnName, values.toArray());
 					}
 				}
 			}
@@ -161,7 +134,8 @@ public class DefaultDruidParser implements DruidParser {
 		}
 		return retList;
 	}
-	
+
+	/* 检查values中是否存在null或者空值 */
 	private boolean checkConditionValues(List<Object> values) {
 		for(Object value : values) {
 			if(value != null && !value.toString().equals("")) {
@@ -170,8 +144,8 @@ public class DefaultDruidParser implements DruidParser {
 		}
 		return false;
 	}
-	
-	public DruidShardingParseInfo getCtx() {
-		return ctx;
-	}
+
+	public Map<String, String> getTableAliasMap() { return tableAliasMap; }
+	public List<Condition> getConditions() { return conditions; }
+	public DruidShardingParseInfo getCtx() { return ctx; }
 }

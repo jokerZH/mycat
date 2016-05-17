@@ -28,13 +28,13 @@ LIMIT  20
  * 
  */
 public class WhereUnit {
-	private SQLBinaryOpExpr whereExpr;								/* 完整的where条件 */
-	private SQLBinaryOpExpr canSplitExpr;							/* 还能继续再分的表达式:可能还有or关键字 */
-	private List<SQLExpr> splitedExprList = new ArrayList<SQLExpr>();				/* TODO */
-	private List<List<Condition>> conditionList = new ArrayList<List<Condition>>();	 /* TODO */
-	private List<Condition> outConditions = new ArrayList<Condition>();		/* whereExpr并不是一个where的全部，有部分条件在outConditions */
-	private List<WhereUnit> subWhereUnits = new ArrayList<WhereUnit>();		/* 按照or拆分后的条件片段中可能还有or语句，这样的片段实际上是嵌套的or语句，将其作为内层子whereUnit，不管嵌套多少层，循环处理 */
-	private boolean finishedParse = false;
+	private SQLBinaryOpExpr whereExpr;		/* 完整的where条件 一个表达式的二叉树 */
+	private SQLBinaryOpExpr canSplitExpr;	/* 还能继续再分的表达式:可能还有or关键字 一个表达式的二叉树, 每次切分都是从这里拿可以切人的表达式,然后切分后放入splitedExprList中 */
+	private List<SQLExpr> splitedExprList = new ArrayList<SQLExpr>();		/* or and分隔的各个表达式*/
+	private List<List<Condition>> conditionList = new ArrayList<List<Condition>>();/* 存放解析完成的二元操作 */
+	private List<Condition> outConditions = new ArrayList<Condition>();	/* whereExpr并不是一个where的全部，有部分条件在outConditions */
+	private List<WhereUnit> subWhereUnits = new ArrayList<WhereUnit>();	/* 按照or拆分后的条件片段中可能还有or语句，这样的片段实际上是嵌套的or语句，将其作为内层子whereUnit，不管嵌套多少层，循环处理 */
+	private boolean finishedParse = false;	/* 是否切分表达式完成 */
 
 	public WhereUnit() {}
 	public WhereUnit(SQLBinaryOpExpr whereExpr) {

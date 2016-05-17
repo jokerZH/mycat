@@ -32,18 +32,14 @@ import com.alibaba.druid.sql.visitor.SchemaStatVisitor;
 /* 语法解析 DruidParser的工厂类 */
 public class DruidParserFactory
 {
-    public static DruidParser create(SchemaConfig schema, SQLStatement statement, SchemaStatVisitor visitor)
+    public static DruidParser create(SchemaConfig schema/*sql语句*/, SQLStatement statement/*sql解析结果*/, SchemaStatVisitor visitor/*获得sql信息的visitor*/)
     {
         DruidParser parser = null;
         if (statement instanceof SQLSelectStatement) {
-            if(schema.isNeedSupportMultiDBType()) {
-                parser = getDruidParserForMultiDB(schema, statement, visitor);
-            }
-
-            if (parser == null)
-            {
-                parser = new DruidSelectParser();
-            }
+            // 是否支持多个db类型
+            if(schema.isNeedSupportMultiDBType()) { parser = getDruidParserForMultiDB(schema, statement, visitor); }
+            // 支持mysql
+            if (parser == null)  { parser = new DruidSelectParser(); }
         } else if (statement instanceof MySqlInsertStatement)
         {
             parser = new DruidInsertParser();

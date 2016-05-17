@@ -10,9 +10,10 @@ import java.util.Set;
 
 /* 路由计算单元 */
 public class RouteCalculateUnit {
-	private Map<String, Map<String, Set<ColumnRoutePair>>> tablesAndConditions = new LinkedHashMap<String, Map<String, Set<ColumnRoutePair>>>();	/* TODO */
+	private Map<String/*tableName*/, Map<String/*columnName*/, Set<ColumnRoutePair>>> tablesAndConditions = new LinkedHashMap<String, Map<String, Set<ColumnRoutePair>>>();	/* TODO */
 
-	public void addShardingExpr(String tableName, String columnName, Object value) {
+	/* 这里根据value的类型来决定操作类型,要么等于,要么范围 */
+	public void addShardingExpr(String tableName/*逻辑表名*/, String columnName/*字段名*/, Object value/*值*/) {
 		Map<String, Set<ColumnRoutePair>> tableColumnsMap = tablesAndConditions.get(tableName);
 		
 		if (value == null) { return; }

@@ -22,11 +22,12 @@ import java.util.Iterator;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
-/* 负责路由功能 */
+/* 负责路由功能 默认的路由器 */
 public class DruidMycatRouteStrategy extends AbstractRouteStrategy {
 	private static final Logger LOGGER = LoggerFactory.getLogger(DruidMycatRouteStrategy.class);
-	
+
 	@Override
+	/* 一般sql的执行过程 */
 	public RouteResultset routeNormalSqlWithAST(SchemaConfig schema, String stmt, RouteResultset rrs, String charset, LayerCachePool cachePool) throws SQLNonTransientException {
 		SQLStatementParser parser =null;
 		if(schema.isNeedSupportMultiDBType()) {
@@ -39,6 +40,7 @@ public class DruidMycatRouteStrategy extends AbstractRouteStrategy {
 		MycatSchemaStatVisitor visitor = null;
 		SQLStatement statement;
 		try {
+			// 解析sql语句
 			statement = parser.parseStatement();
             visitor = new MycatSchemaStatVisitor();
 		} catch (Exception t) {
@@ -50,6 +52,7 @@ public class DruidMycatRouteStrategy extends AbstractRouteStrategy {
 		// 检验unsupported statement
 		checkUnSupportedStatement(statement);
 
+		// 构建解析器
         DruidParser druidParser = DruidParserFactory.create(schema,statement,visitor);
 		druidParser.parser(schema, rrs, statement, stmt,cachePool,visitor);
 
@@ -94,7 +97,7 @@ public class DruidMycatRouteStrategy extends AbstractRouteStrategy {
 	}
 
 
-	/* 判断是否是select语句 */
+
     private boolean isSelect(SQLStatement statement) {
 		if(statement instanceof SQLSelectStatement) {
 			return true;
@@ -246,7 +249,7 @@ public class DruidMycatRouteStrategy extends AbstractRouteStrategy {
 		return RouterUtil.routeToSingleNode(rrs, schema.getRandomDataNode(), stmt);
 	}
 
-	/* 检验不支持的SQLStatement类型 ：不支持的类型直接抛SQLSyntaxErrorException异常 */
+	/* 检验不支持的SQLStatement类型 */
 	private void checkUnSupportedStatement(SQLStatement statement) throws SQLSyntaxErrorException {
 		if(statement instanceof MySqlReplaceStatement) {
 			//不支持replace语句

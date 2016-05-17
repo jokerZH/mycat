@@ -23,6 +23,7 @@
  */
 package io.mycat.sqlengine.mpp;
 
+/* 聚合函数相关 */
 public class MergeCol {
 	public static final int MERGE_COUNT = 1;
 	public static final int MERGE_SUM = 2;
@@ -50,8 +51,7 @@ public class MergeCol {
 			return MERGE_MIN;
 		} else if (upper.startsWith("MAX")) {
 			return MERGE_MAX;
-		}
-        else if (upper.startsWith("AVG")) {
+		} else if (upper.startsWith("AVG")) {
             return MERGE_AVG;
         }
         else {
