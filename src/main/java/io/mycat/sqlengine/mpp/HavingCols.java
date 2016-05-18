@@ -2,11 +2,11 @@ package io.mycat.sqlengine.mpp;
 
 import java.io.Serializable;
 
-/* TODO */
+/* 表示groupBy中的having语句, having a>0 */
 public class HavingCols implements Serializable {
-	String left;			/* TODO */
-	String right;			/* TODO */
-	String operator;		/* TODO */
+	String left;			/* 左操作 */
+	String right;			/* 右操作 */
+	String operator;		/* 操作 > = < 等 */
 	public ColMeta colMeta;	/* 字段类型和下标 */
 
 	public HavingCols(String left, String right, String operator) {

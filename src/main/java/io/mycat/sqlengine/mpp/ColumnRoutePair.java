@@ -27,7 +27,7 @@ package io.mycat.sqlengine.mpp;
 public class ColumnRoutePair {
 	public final String colValue;		/* 字段值 */
 	public final RangeValue rangeValue;	/* 范围值 */
-	public Integer nodeId;				/* 结果下标 */
+	public Integer nodeId;				/* 路由结果的slice下标 */
 
 	public ColumnRoutePair(String colValue) {
 		super();

@@ -25,7 +25,7 @@ import java.util.Map;
 public class DefaultDruidParser implements DruidParser {
 	protected static final Logger LOGGER = LoggerFactory.getLogger(DefaultDruidParser.class);
 
-	protected DruidShardingParseInfo ctx;	/* 解析得到的结果 */
+	protected DruidShardingParseInfo ctx;	/* visitor 解析得到的结果 */
 	private Map<String,String> tableAliasMap = new HashMap<String,String>();	/* 表明映射关系 */
 	private List<Condition> conditions = new ArrayList<Condition>();	/* 逻辑表达式的对象 */
 	

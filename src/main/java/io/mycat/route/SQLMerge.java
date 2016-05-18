@@ -31,9 +31,9 @@ import java.util.Map;
 
 /* seelct sql语句负责处理相关 */
 public class SQLMerge implements Serializable {
-	private LinkedHashMap<String, Integer> orderByCols;	/* order的字段名, 有现有顺序? */
-	private HavingCols havingCols;						/* sql中存在的字段名 */
-	private Map<String/*聚合函数名*/, Integer/*类型*/> mergeCols;				/* 聚合函数列表 */
+	private LinkedHashMap<String, Integer> orderByCols;	/* order的字段名 */
+	private HavingCols havingCols;						/* having中的表达式 如A>0 */
+	private Map<String/*聚合函数名*/, Integer/*类型*/> mergeCols;	/* 聚合函数列表 */
 	private String[] groupByCols;						/* group by 的字段名 */
 	private boolean hasAggrColumn;						/* 是否有聚合函数 如count sum等 */
 

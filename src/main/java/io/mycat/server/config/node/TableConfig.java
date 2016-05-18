@@ -44,12 +44,12 @@ public class TableConfig {
     private boolean autoIncrement;			/* 是否自增 */
     private boolean needAddLimit;			/* 是否自动增加ilmit */
     private Set<String> dbTypes;			/* TODO */
-    private int tableType;					/* TODO */
-    private ArrayList<String> dataNodes;	/* TODO 后端数据接点 */
+    private int tableType;					/* 表的类型,如是否是分表 */
+    private ArrayList<String> dataNodes;	/* 后端silce名 */
     private RuleConfig rule;				/* 分表算法 */
 	private String ruleName;				/* rule名字 */
     private String partitionColumn;			/* 分表字段名 sharding id */
-    private boolean ruleRequired;
+    private boolean ruleRequired;			/* TODO */
     private TableConfig parentTC;			/* 父亲表 */
     private boolean childTable;				/* 是否是子表 */
     private String joinKey;					/* 本表的字段 */
@@ -215,6 +215,7 @@ public class TableConfig {
 	public String getRandomDataNode() {
 		int index = Math.abs(rand.nextInt()) % dataNodes.size();
 		return dataNodes.get(index);
+	}
 
 
 	/* 检测配置 */

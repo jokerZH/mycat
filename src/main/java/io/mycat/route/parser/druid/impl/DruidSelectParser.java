@@ -58,6 +58,7 @@ public class DruidSelectParser extends DefaultDruidParser {
     protected boolean isNeedParseOrderAgg=true;
 
     @Override
+    /* 提取sql中的信息 结果存放在rrs中 */
     public void statementParse(SchemaConfig schema, RouteResultset rrs, SQLStatement stmt) {
         SQLSelectStatement selectStmt = (SQLSelectStatement)stmt;
         SQLSelectQuery sqlSelectQuery = selectStmt.getSelect().getQuery();
@@ -66,10 +67,11 @@ public class DruidSelectParser extends DefaultDruidParser {
             // 单个select语句
             MySqlSelectQueryBlock mysqlSelectQuery = (MySqlSelectQueryBlock)selectStmt.getSelect().getQuery();
 
+            // 获得sql中的信息,并对avg函数修改sql语句
             parseOrderAggGroupMysql(schema, stmt,rrs, mysqlSelectQuery);
-            //更改canRunInReadDB属性
-            if ((mysqlSelectQuery.isForUpdate() || mysqlSelectQuery.isLockInShareMode()) && rrs.isAutocommit() == false)
-            {
+
+            // 更改canRunInReadDB属性
+            if ((mysqlSelectQuery.isForUpdate() || mysqlSelectQuery.isLockInShareMode()) && rrs.isAutocommit() == false) {
                 rrs.setCanRunInReadDB(false);
             }
 
@@ -78,13 +80,96 @@ public class DruidSelectParser extends DefaultDruidParser {
         }
     }
 
-    /* TODO */
+    @Override
+    /* 计算结果slice 并根据结果改写sql：需要加limit的加上 */
+    public void changeSql(SchemaConfig schema, RouteResultset rrs, SQLStatement stmt,LayerCachePool cachePool) throws SQLNonTransientException {
+        // 获得计算表达式对应的slice,结果存在rrs中
+        tryRoute(schema, rrs, cachePool);
+
+        // 增加limit
+        rrs.copyLimitToNodes();
+
+        SQLSelectStatement selectStmt = (SQLSelectStatement)stmt;
+        SQLSelectQuery sqlSelectQuery = selectStmt.getSelect().getQuery();
+        if(sqlSelectQuery instanceof MySqlSelectQueryBlock) {
+            // 单个select语句
+            MySqlSelectQueryBlock mysqlSelectQuery = (MySqlSelectQueryBlock)selectStmt.getSelect().getQuery();
+
+            // 清楚groupby中的having  TODO why?
+            SQLSelectGroupByClause groupByClause = mysqlSelectQuery.getGroupBy();
+            if(groupByClause != null && groupByClause.getHaving() != null){
+                groupByClause.setHaving(null);
+            }
+
+            // 增加limit
+            int limitStart = 0;
+            int limitSize = schema.getDefaultMaxLimit();
+            Map<String, Map<String, Set<ColumnRoutePair>>> allConditions = getAllConditions();
+            boolean isNeedAddLimit = isNeedAddLimit(schema, rrs, mysqlSelectQuery, allConditions);
+            if(isNeedAddLimit) {
+                Limit limit = new Limit();
+                limit.setRowCount(new SQLIntegerExpr(limitSize));
+                mysqlSelectQuery.setLimit(limit);
+                rrs.setLimitSize(limitSize);
+                String sql= getSql(rrs, stmt, isNeedAddLimit);
+                rrs.changeNodeSqlAfterAddLimit(schema, getCurentDbType(), sql, 0, limitSize, true);
+            }
+
+            // 将sql中的limit信息存放到rss中
+            Limit limit = mysqlSelectQuery.getLimit();
+            if(limit != null&&!isNeedAddLimit) {
+                SQLIntegerExpr offset = (SQLIntegerExpr)limit.getOffset();
+                SQLIntegerExpr count = (SQLIntegerExpr)limit.getRowCount();
+                if(offset != null) {
+                    limitStart = offset.getNumber().intValue();
+                    rrs.setLimitStart(limitStart);
+                }
+                if(count != null) {
+                    limitSize = count.getNumber().intValue();
+                    rrs.setLimitSize(limitSize);
+                }
+
+                // 分表下 limit如何实现
+                if(isNeedChangeLimit(rrs)) {
+                    Limit changedLimit = new Limit();
+                    // FIXME 特么start大怎么办,不用脑子想想么
+                    changedLimit.setRowCount(new SQLIntegerExpr(limitStart + limitSize));
+
+                    if(offset != null) {
+                        if(limitStart < 0) {
+                            String msg = "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '" + limitStart + "'";
+                            throw new SQLNonTransientException(ErrorCode.ER_PARSE_ERROR + " - " + msg);
+                        } else {
+                            changedLimit.setOffset(new SQLIntegerExpr(0));
+                        }
+                    }
+
+                    mysqlSelectQuery.setLimit(changedLimit);
+
+                    String sql= getSql(rrs, stmt, isNeedAddLimit);
+                    rrs.changeNodeSqlAfterAddLimit(schema,getCurentDbType(),sql,0, limitStart + limitSize, true);
+
+                    //设置改写后的sql
+                    ctx.setSql(sql);
+
+                } else {
+                    rrs.changeNodeSqlAfterAddLimit(schema,getCurentDbType(),getCtx().getSql(),rrs.getLimitStart(), rrs.getLimitSize(), true);
+                }
+            }
+
+            rrs.setCacheAble(isNeedCache(schema, rrs, mysqlSelectQuery, allConditions));
+        }
+    }
+
+
+
+    /* 提起select语句中的信息,同时对于一些聚合函数,修改sql语句 */
     protected void parseOrderAggGroupMysql(SchemaConfig schema, SQLStatement stmt, RouteResultset rrs, MySqlSelectQueryBlock mysqlSelectQuery)
     {
         if(!isNeedParseOrderAgg)  { return; }
         Map<String, String> aliaColumns = parseAggGroupCommon(schema, stmt, rrs, mysqlSelectQuery);
 
-        //setOrderByCols
+        // 活的OrderBy中的字段值
         if(mysqlSelectQuery.getOrderBy() != null) {
             List<SQLSelectOrderByItem> orderByItems = mysqlSelectQuery.getOrderBy().getItems();
             rrs.setOrderByCols(buildOrderByCols(orderByItems,aliaColumns));
@@ -92,8 +177,8 @@ public class DruidSelectParser extends DefaultDruidParser {
         isNeedParseOrderAgg=false;
     }
 
-    /* 解析聚合函数, Distinct, groupBy的情况 */
-    protected Map<String, String> parseAggGroupCommon(SchemaConfig schema, SQLStatement stmt, RouteResultset rrs, SQLSelectQueryBlock mysqlSelectQuery)
+    /* 解析聚合函数, Distinct, groupBy的情况,并根据聚合函数在分表情况的策略修改sql*/
+    protected Map<String/*字段名*/, String/*字段别名*/> parseAggGroupCommon(SchemaConfig schema, SQLStatement stmt, RouteResultset rrs, SQLSelectQueryBlock mysqlSelectQuery)
     {
         Map<String, String> aliaColumns = new HashMap<String, String>();    /* 字段名 假名和真名的映射关系 */
         Map<String/*聚合函数名*/, Integer/*聚合函数类型*/> aggrColumns = new HashMap<String, Integer>();
@@ -180,14 +265,12 @@ public class DruidSelectParser extends DefaultDruidParser {
             rrs.setMergeCols(aggrColumns);
         }
 
-        // 处理distinct关键字
         boolean isDistinct=mysqlSelectQuery.getDistionOption()==2;
         if(isDistinct) {
-            // 通过优化转换成group by来实现  FIXME distinct消除相同项咋弄呢
+            // 处理distinct关键字 通过优化转换成group by来实现  FIXME distinct消除相同项咋弄呢
             mysqlSelectQuery.setDistionOption(0);
             SQLSelectGroupByClause groupBy = new SQLSelectGroupByClause();
-            for (String fieldName : aliaColumns.keySet())
-            {
+            for (String fieldName : aliaColumns.keySet()) {
                 groupBy.addItem(new SQLIdentifierExpr(fieldName));
             }
             mysqlSelectQuery.setGroupBy(groupBy);
@@ -195,8 +278,8 @@ public class DruidSelectParser extends DefaultDruidParser {
         }
 
 
-        // setGroupByCols
         if(mysqlSelectQuery.getGroupBy() != null) {
+            // 处理groupby
             List<SQLExpr> groupByItems = mysqlSelectQuery.getGroupBy().getItems();
             String[] groupByCols = buildGroupByCols(groupByItems,aliaColumns);
             rrs.setGroupByCols(groupByCols);
@@ -204,15 +287,16 @@ public class DruidSelectParser extends DefaultDruidParser {
             rrs.setHasAggrColumn(true);
         }
 
-
         if (isNeedChangeSql) {
+            // 根据需要修改sql, toString中就会根据前面的修改生成新的sql
             String sql = stmt.toString();
-            rrs.changeNodeSqlAfterAddLimit(schema,getCurentDbType(),sql,0,-1, false);
+            rrs.changeNodeSqlAfterAddLimit(schema, getCurentDbType(), sql, 0, -1, false);
             getCtx().setSql(sql);
         }
         return aliaColumns;
     }
 
+    /* 获得having中的表达式 */
     private HavingCols buildGroupByHaving(SQLExpr having){
         if (having == null) {
             return null;
@@ -225,8 +309,9 @@ public class DruidSelectParser extends DefaultDruidParser {
 
         String leftValue = null;;
         if (left instanceof SQLAggregateExpr) {
-            leftValue = ((SQLAggregateExpr) left).getMethodName() + "("
-                    + ((SQLAggregateExpr) left).getArguments().get(0) + ")";
+            // 如果做操作是聚合函数
+            leftValue = ((SQLAggregateExpr) left).getMethodName() + "(" + ((SQLAggregateExpr) left).getArguments().get(0) + ")";
+
         } else if (left instanceof SQLIdentifierExpr) {
             leftValue = ((SQLIdentifierExpr) left).getName();
         }
@@ -234,13 +319,14 @@ public class DruidSelectParser extends DefaultDruidParser {
         String rightValue = null;
         if (right instanceof  SQLNumericLiteralExpr) {
             rightValue = right.toString();
-        }else if(right instanceof SQLTextLiteralExpr){
+        } else if(right instanceof SQLTextLiteralExpr) {
             rightValue = StringUtil.removeBackquote(right.toString());
         }
 
         return new HavingCols(leftValue,rightValue,operator.getName());
     }
 
+    /* TODO */
     private boolean isRoutMultiNode(SchemaConfig schema,  RouteResultset rrs)
     {
         if(rrs.getNodes()!=null&&rrs.getNodes().length>1)
@@ -262,104 +348,21 @@ public class DruidSelectParser extends DefaultDruidParser {
         return false;
     }
 
+    /* 获得字段名 */
     private String getFieldName(SQLSelectItem item){
-        if ((item.getExpr() instanceof SQLPropertyExpr)||(item.getExpr() instanceof SQLMethodInvokeExpr)
-                || (item.getExpr() instanceof SQLIdentifierExpr) || item.getExpr() instanceof SQLBinaryOpExpr) {
+        if (
+            (item.getExpr() instanceof SQLPropertyExpr) ||
+            (item.getExpr() instanceof SQLMethodInvokeExpr) ||
+            (item.getExpr() instanceof SQLIdentifierExpr) ||
+            (item.getExpr() instanceof SQLBinaryOpExpr)
+            ) {
             return item.getExpr().toString();//字段别名
-        }
-        else
+        } else {
             return item.toString();
-    }
-    /**
-     * 改写sql：需要加limit的加上
-     */
-    @Override
-    public void changeSql(SchemaConfig schema, RouteResultset rrs, SQLStatement stmt,LayerCachePool cachePool) throws SQLNonTransientException {
-
-        tryRoute(schema, rrs, cachePool);
-
-        rrs.copyLimitToNodes();
-
-        SQLSelectStatement selectStmt = (SQLSelectStatement)stmt;
-        SQLSelectQuery sqlSelectQuery = selectStmt.getSelect().getQuery();
-        if(sqlSelectQuery instanceof MySqlSelectQueryBlock) {
-            MySqlSelectQueryBlock mysqlSelectQuery = (MySqlSelectQueryBlock)selectStmt.getSelect().getQuery();
-            int limitStart = 0;
-            int limitSize = schema.getDefaultMaxLimit();
-
-            //clear group having
-            SQLSelectGroupByClause groupByClause = mysqlSelectQuery.getGroupBy();
-            if(groupByClause != null && groupByClause.getHaving() != null){
-                groupByClause.setHaving(null);
-            }
-
-            Map<String, Map<String, Set<ColumnRoutePair>>> allConditions = getAllConditions();
-            boolean isNeedAddLimit = isNeedAddLimit(schema, rrs, mysqlSelectQuery, allConditions);
-            if(isNeedAddLimit) {
-                Limit limit = new Limit();
-                limit.setRowCount(new SQLIntegerExpr(limitSize));
-                mysqlSelectQuery.setLimit(limit);
-                rrs.setLimitSize(limitSize);
-                String sql= getSql(rrs, stmt, isNeedAddLimit);
-                rrs.changeNodeSqlAfterAddLimit(schema, getCurentDbType(), sql, 0, limitSize, true);
-
-            }
-            Limit limit = mysqlSelectQuery.getLimit();
-            if(limit != null&&!isNeedAddLimit) {
-                SQLIntegerExpr offset = (SQLIntegerExpr)limit.getOffset();
-                SQLIntegerExpr count = (SQLIntegerExpr)limit.getRowCount();
-                if(offset != null) {
-                    limitStart = offset.getNumber().intValue();
-                    rrs.setLimitStart(limitStart);
-                }
-                if(count != null) {
-                    limitSize = count.getNumber().intValue();
-                    rrs.setLimitSize(limitSize);
-                }
-
-                if(isNeedChangeLimit(rrs)) {
-                    Limit changedLimit = new Limit();
-                    changedLimit.setRowCount(new SQLIntegerExpr(limitStart + limitSize));
-
-                    if(offset != null) {
-                        if(limitStart < 0) {
-                            String msg = "You have an error in your SQL syntax; check the manual that " +
-                                    "corresponds to your MySQL server version for the right syntax to use near '" + limitStart + "'";
-                            throw new SQLNonTransientException(ErrorCode.ER_PARSE_ERROR + " - " + msg);
-                        } else {
-                            changedLimit.setOffset(new SQLIntegerExpr(0));
-
-                        }
-                    }
-
-                    mysqlSelectQuery.setLimit(changedLimit);
-
-                    String sql= getSql(rrs, stmt, isNeedAddLimit);
-                    rrs.changeNodeSqlAfterAddLimit(schema,getCurentDbType(),sql,0, limitStart + limitSize, true);
-
-                    //设置改写后的sql
-                    ctx.setSql(sql);
-
-                }   else
-                {
-
-                    rrs.changeNodeSqlAfterAddLimit(schema,getCurentDbType(),getCtx().getSql(),rrs.getLimitStart(), rrs.getLimitSize(), true);
-                    //	ctx.setSql(nativeSql);
-
-                }
-
-
-            }
-
-            rrs.setCacheAble(isNeedCache(schema, rrs, mysqlSelectQuery, allConditions));
         }
-
     }
 
-    /**
-     * 获取所有的条件：因为可能被or语句拆分成多个RouteCalculateUnit，条件分散了
-     * @return
-     */
+    /* 获得一个sql语句的所有计算表达式 */
     private Map<String, Map<String, Set<ColumnRoutePair>>> getAllConditions() {
         Map<String, Map<String, Set<ColumnRoutePair>>> map = new HashMap<String, Map<String, Set<ColumnRoutePair>>>();
         for(RouteCalculateUnit unit : ctx.getRouteCalculateUnits()) {
@@ -371,22 +374,23 @@ public class DruidSelectParser extends DefaultDruidParser {
         return map;
     }
 
+    /* 根据ctx中的计算表达式,路由得到slice集合 */
     private void tryRoute(SchemaConfig schema, RouteResultset rrs, LayerCachePool cachePool) throws SQLNonTransientException
     {
-        if(rrs.isFinishedRoute())
-        {
-            return;//避免重复路由
-        }
+        if(rrs.isFinishedRoute()) { return; }
 
-        //无表的select语句直接路由带任一节点
         if(ctx.getTables() == null || ctx.getTables().size() == 0) {
+            // 无表的select语句直接路由带任一节点
             rrs = RouterUtil.routeToSingleNode(rrs, schema.getRandomDataNode(), ctx.getSql());
             rrs.setFinishedRoute(true);
             return;
         }
-//		RouterUtil.tryRouteForTables(schema, ctx, rrs, true, cachePool);
-        SortedSet<RouteResultsetNode> nodeSet = new TreeSet<RouteResultsetNode>();
+
+        // 判断是否是全局表
         boolean isAllGlobalTable = RouterUtil.isAllGlobalTable(ctx, schema);
+
+        // 获得路由后的slice集合
+        SortedSet<RouteResultsetNode> nodeSet = new TreeSet<RouteResultsetNode>();
         for (RouteCalculateUnit unit : ctx.getRouteCalculateUnits()) {
             RouteResultset rrsTmp = RouterUtil.tryRouteForTables(schema, ctx, unit, rrs, true, cachePool);
             if (rrsTmp != null) {
@@ -394,7 +398,8 @@ public class DruidSelectParser extends DefaultDruidParser {
                     nodeSet.add(node);
                 }
             }
-            if(isAllGlobalTable) {//都是全局表时只计算一遍路由
+            if(isAllGlobalTable) {
+                // 都是全局表时只计算一遍路由
                 break;
             }
         }
@@ -405,41 +410,33 @@ public class DruidSelectParser extends DefaultDruidParser {
             throw new SQLNonTransientException(msg);
         }
 
+        // 将结果拷贝到rrs中
         RouteResultsetNode[] nodes = new RouteResultsetNode[nodeSet.size()];
         int i = 0;
         for (Iterator<RouteResultsetNode> iterator = nodeSet.iterator(); iterator.hasNext();) {
             nodes[i] = (RouteResultsetNode) iterator.next();
             i++;
-
         }
-
         rrs.setNodes(nodes);
         rrs.setFinishedRoute(true);
     }
 
 
-    protected String getCurentDbType()
-    {
-        return JdbcConstants.MYSQL;
-    }
+    protected String getCurentDbType() { return JdbcConstants.MYSQL; }
 
 
-
-
-    protected String getSql( RouteResultset rrs,SQLStatement stmt, boolean isNeedAddLimit)
-    {
-        if(getCurentDbType().equalsIgnoreCase("mysql")&&(isNeedChangeLimit(rrs)||isNeedAddLimit))
-        {
-
+    /* 判断是否需要增加limit, 需要则生成新的sql,否则返回原先的sql */
+    protected String getSql( RouteResultset rrs,SQLStatement stmt, boolean isNeedAddLimit) {
+        if(getCurentDbType().equalsIgnoreCase("mysql") &&
+                (isNeedChangeLimit(rrs) || isNeedAddLimit)) {
             return stmt.toString();
-
         }
 
         return getCtx().getSql();
     }
 
 
-
+    /* 判断是否需要增加对分表下对limit的操作 */
     protected boolean isNeedChangeLimit(RouteResultset rrs) {
         if(rrs.getNodes() == null) {
             return false;
@@ -448,28 +445,29 @@ public class DruidSelectParser extends DefaultDruidParser {
                 return true;
             }
             return false;
-
         }
     }
 
-    private boolean isNeedCache(SchemaConfig schema, RouteResultset rrs,
-                                MySqlSelectQueryBlock mysqlSelectQuery, Map<String, Map<String, Set<ColumnRoutePair>>> allConditions) {
+    /* 判断是否需要缓存 */
+    private boolean isNeedCache(SchemaConfig schema, RouteResultset rrs, MySqlSelectQueryBlock mysqlSelectQuery, Map<String, Map<String, Set<ColumnRoutePair>>> allConditions) {
         if(ctx.getTables() == null || ctx.getTables().size() == 0 ) {
             return false;
         }
         TableConfig tc = schema.getTables().get(ctx.getTables().get(0));
-        if(tc==null ||(ctx.getTables().size() == 1 && tc.isGlobalTable())
-                ) {//|| (ctx.getTables().size() == 1) && tc.getRule() == null && tc.getDataNodes().size() == 1
+        if(tc==null || (ctx.getTables().size()==1 && tc.isGlobalTable())) {
             return false;
         } else {
             //单表主键查询
             if(ctx.getTables().size() == 1) {
                 String tableName = ctx.getTables().get(0);
                 String primaryKey = schema.getTables().get(tableName).getPrimaryKey();
-//				schema.getTables().get(ctx.getTables().get(0)).getParentKey() != null;
-                if(ctx.getRouteCalculateUnit().getTablesAndConditions().get(tableName) != null
-                        && ctx.getRouteCalculateUnit().getTablesAndConditions().get(tableName).get(primaryKey) != null
-                        && tc.getDataNodes().size() > 1) {//有主键条件
+
+                if(
+                    ctx.getRouteCalculateUnit().getTablesAndConditions().get(tableName)!=null &&
+                    ctx.getRouteCalculateUnit().getTablesAndConditions().get(tableName).get(primaryKey)!=null &&
+                    tc.getDataNodes().size()>1
+                  ) {
+                    //有主键条件
                     return false;
                 }
             }
@@ -477,37 +475,31 @@ public class DruidSelectParser extends DefaultDruidParser {
         }
     }
 
-    /**
-     * 单表且是全局表
-     * 单表且rule为空且nodeNodes只有一个
-     * @param schema
-     * @param rrs
-     * @param mysqlSelectQuery
-     * @return
-     */
-    private boolean isNeedAddLimit(SchemaConfig schema, RouteResultset rrs,
-                                   MySqlSelectQueryBlock mysqlSelectQuery, Map<String, Map<String, Set<ColumnRoutePair>>> allConditions) {
-//		ctx.getTablesAndConditions().get(key))
-        if(rrs.getLimitSize()>-1)
-        {
+    /* 判断是否需要增加limit */
+    private boolean isNeedAddLimit(SchemaConfig schema, RouteResultset rrs, MySqlSelectQueryBlock mysqlSelectQuery, Map<String, Map<String, Set<ColumnRoutePair>>> allConditions) {
+        if(rrs.getLimitSize()>-1) {
             return false;
-        }else
-        if(schema.getDefaultMaxLimit() == -1) {
+
+        } else if(schema.getDefaultMaxLimit() == -1) {
             return false;
-        } else if (mysqlSelectQuery.getLimit() != null) {//语句中已有limit
+
+        } else if (mysqlSelectQuery.getLimit() != null) {
+            //语句中已有limit
             return false;
+
         } else if(ctx.getTables().size() == 1) {
+
             String tableName = ctx.getTables().get(0);
             TableConfig tableConfig = schema.getTables().get(tableName);
-            if(tableConfig==null)
-            {
-                return    schema.getDefaultMaxLimit() > -1;   //   找不到则取schema的配置
+            if(tableConfig==null) {
+                // 找不到则取schema的配置
+                return schema.getDefaultMaxLimit() > -1;
             }
 
             boolean isNeedAddLimit= tableConfig.isNeedAddLimit();
-            if(!isNeedAddLimit)
-            {
-                return false;//优先从配置文件取
+            if(!isNeedAddLimit) {
+                // 优先从配置文件取
+                return false;
             }
 
             if(schema.getTables().get(tableName).isGlobalTable()) {
@@ -516,26 +508,33 @@ public class DruidSelectParser extends DefaultDruidParser {
 
             String primaryKey = schema.getTables().get(tableName).getPrimaryKey();
 
-//			schema.getTables().get(ctx.getTables().get(0)).getParentKey() != null;
-            if(allConditions.get(tableName) == null) {//无条件
+            if(allConditions.get(tableName) == null) {
+                //无条件
                 return true;
             }
 
-            if (allConditions.get(tableName).get(primaryKey) != null) {//条件中带主键
+            if (allConditions.get(tableName).get(primaryKey) != null) {
+                //条件中带主键
                 return false;
             }
 
             return true;
-        } else if(rrs.hasPrimaryKeyToCache() && ctx.getTables().size() == 1){//只有一个表且条件中有主键,不需要limit了,因为主键只能查到一条记录
+
+        } else if(rrs.hasPrimaryKeyToCache() && ctx.getTables().size() == 1) {
+            //只有一个表且条件中有主键,不需要limit了,因为主键只能查到一条记录
             return false;
-        } else {//多表或无表
+
+        } else {
+            //多表或无表
             return false;
         }
-
     }
+
+    /* 获得字段的别名 */
     private String getAliaColumn(Map<String, String> aliaColumns,String column ){
         String alia=aliaColumns.get(column);
-        if (alia==null){
+
+        if (alia==null) {
             if(column.indexOf(".") < 0) {
                 String col = "." + column;
                 String col2 = ".`" + column+"`";
@@ -551,8 +550,7 @@ public class DruidSelectParser extends DefaultDruidParser {
             }
 
             return column;
-        }
-        else {
+        } else {
             return alia;
         }
     }
@@ -588,10 +586,13 @@ public class DruidSelectParser extends DefaultDruidParser {
         return groupByCols;
     }
 
-    protected LinkedHashMap<String, Integer> buildOrderByCols(List<SQLSelectOrderByItem> orderByItems,Map<String, String> aliaColumns) {
+    /* 获得orderBy的字段名 */
+    protected LinkedHashMap<String/*字段别名*/, Integer/*递增或递减*/> buildOrderByCols(List<SQLSelectOrderByItem> orderByItems,Map<String, String> aliaColumns) {
         LinkedHashMap<String, Integer> map = new LinkedHashMap<String, Integer>();
+
         for(int i= 0; i < orderByItems.size(); i++) {
             SQLOrderingSpecification type = orderByItems.get(i).getType();
+
             //orderColumn只记录字段名称,因为返回的结果集是不带表名的。
             SQLExpr expr =  orderByItems.get(i).getExpr();
             String col;
@@ -601,10 +602,12 @@ public class DruidSelectParser extends DefaultDruidParser {
             else {
                 col =expr.toString();
             }
+
             if(type == null) {
                 type = SQLOrderingSpecification.ASC;
             }
-            col=getAliaColumn(aliaColumns,col);//此步骤得到的col必须是不带.的，有别名的用别名，无别名的用字段名
+            //此步骤得到的col必须是不带.的，有别名的用别名，无别名的用字段名
+            col = getAliaColumn(aliaColumns,col);
             map.put(col, type == SQLOrderingSpecification.ASC ? OrderCol.COL_ORDER_TYPE_ASC : OrderCol.COL_ORDER_TYPE_DESC);
         }
         return map;
